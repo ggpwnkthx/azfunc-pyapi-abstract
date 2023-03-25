@@ -1,0 +1,17 @@
+azure-data-tables
+azure-functions
+azure-storage-blob
+base58
+itsdangerous
+marshmallow
+py-abac
+pyjwt
+querystring-parser
+traitlets>=5.5.0
+werkzeug
+msal
+sqlalchemy
+smart-open
+python-magic
+python-magic-bin
+pandas
