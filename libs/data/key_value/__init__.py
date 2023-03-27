@@ -1,16 +1,19 @@
-from typing import Any, Protocol, runtime_checkable
+from libs.utils.decorators import staticproperty
+from typing import Any, Callable, Protocol, runtime_checkable
 import inspect
 
 
 @runtime_checkable
 class KeyValue(Protocol):
-    SUPPORTED_SCHEMES = []
+    @staticproperty
+    def SUPPORTED_SCHEMES(self) -> list:
+        pass
 
-    def save(self, key: str, value: Any) -> None:
+    def save(self, key: str, value: Any, encoder: Callable = None, **kwargs) -> None:
         """Store the given value with the specified key in the storage provider."""
         pass
 
-    def load(self, key: str) -> Any:
+    def load(self, key: str, decoder: Callable = None, **kwargs) -> Any:
         """Retrieve the value associated with the specified key from the storage provider."""
         pass
 

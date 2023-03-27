@@ -1,19 +1,26 @@
-from typing import Any
+from libs.utils.decorators import staticproperty
+from typing import Any, Callable
 
 
 class MemoryStorageProvider():
-    SUPPORTED_SCHEMES = [
-        "ram"
-    ]
+    @staticproperty
+    def SUPPORTED_SCHEMES(self) -> list:
+        return [
+            "ram"
+        ]
     
-    def __init__(self) -> None:
+    @staticproperty
+    def scheme(self) -> str:
+        self.SUPPORTED_SCHEMES[0]
+        
+    def __init__(self, *args, **kwargs) -> None:
         self.store = {}
 
-    def save(self, key: str, value: Any) -> None:
-        self.store[key] = value
+    def save(self, key: str, value: Any, encoder: Callable = None, **kwargs) -> None:
+        self.store[key] = encoder(value, **kwargs) if encoder else value
 
-    def load(self, key: str) -> Any:
-        return self.store[key]
+    def load(self, key: str, decoder: Callable = None, **kwargs) -> Any:
+        return decoder(self.store[key], **kwargs) if decoder else self.store[key]
 
     def drop(self, key: str) -> None:
         del self.store[key]

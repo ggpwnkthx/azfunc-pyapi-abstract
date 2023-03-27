@@ -1,3 +1,4 @@
+from libs.utils.decorators import staticproperty
 from shutil import copyfileobj
 from smart_open import open
 from typing import Any, Callable
@@ -7,12 +8,14 @@ _RENAME = {"azure": "azure_blob"}
 
 
 class StreamStorageProvider:
-    SUPPORTED_SCHEMES = list(
-        map(
-            lambda x: _RENAME[x] if x in _RENAME else x,
-            filter(len, smart_open.transport.SUPPORTED_SCHEMES),
+    @staticproperty
+    def SUPPORTED_SCHEMES(self):
+        return list(
+            map(
+                lambda x: _RENAME[x] if x in _RENAME else x,
+                filter(len, smart_open.transport.SUPPORTED_SCHEMES),
+            )
         )
-    )
 
     def __init__(self, *args, **kwargs) -> None:
         if len(args):
@@ -23,24 +26,31 @@ class StreamStorageProvider:
             if self.scheme == value:
                 self.scheme = key
         self.config = {**kwargs}
-        
-    def connect(self, key: str, **kwargs) -> Any:
-        return open(self.scheme + "://" + key, **{"mode": "wb", **kwargs, **self.config})
 
-    def save(self, key: str, value: Any, **kwargs) -> None:
-        if callable(getattr(value, "read", None)):
+    def connect(self, key: str, **kwargs) -> Any:
+        return open(self.scheme + "://" + key, **{**kwargs, **self.config})
+
+    def save(self, key: str, value: Any, encoder: Callable = None, **kwargs) -> None:
+        if encoder != None:
+            value = encoder(value, **kwargs)
+            return self.save(key, value)
+        elif callable(getattr(value, "read", None)):
             copyfileobj(value, self.connect(key))
         else:
             if isinstance(value, bytes):
-                self.connect(key, **kwargs).write(value)
+                self.connect(key, mode="wb").write(value)
             elif isinstance(value, str):
-                self.connect(key, mode="w", **kwargs).write(value)
+                self.connect(key, mode="w").write(value)
+            else:
+                raise TypeError(
+                    "StreamStorageProvider can only save strings and bytes if an encoder is not specified."
+                )
 
     def load(self, key: str, decoder: Callable = None, **kwargs) -> Any:
         if decoder:
-            return decoder(self.connect(key, mode="rb", **kwargs))
-        return self.connect(key, mode="r", **kwargs).read()
-    
+            return decoder(self.connect(key, mode="rb"), **kwargs)
+        return self.connect(key, mode="r").read()
+
     def drop(self, key: str, **kwargs) -> None:
         """TODO: provide a delete mechanism for each schema type"""
         pass
