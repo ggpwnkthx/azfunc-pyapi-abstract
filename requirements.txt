@@ -15,3 +15,4 @@ smart-open
 python-magic
 python-magic-bin
 pandas
+pymssql

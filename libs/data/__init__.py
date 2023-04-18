@@ -58,6 +58,9 @@ def get_provider(protocol: str, scheme: str, *args, **kwargs) -> StorageProvider
         if protocol == cls.get_protocol() or protocol == cls.get_protocol().__name__:
             if scheme in cls.get_schemes():
                 return cls.get_instance(scheme, *args, **kwargs)
+            if hasattr(cls, "regex_schemes"):
+                if cls.regex_schemes(scheme):
+                    return cls.get_instance(scheme, *args, **kwargs)
     raise ValueError(
         f"Storage provider for the '{protocol}' protocol and '{scheme}' schema is not supported."
     )

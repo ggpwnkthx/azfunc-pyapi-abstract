@@ -1,7 +1,6 @@
-from . import app
+from .. import app
 from libs.utils.threaded import current
 from marshmallow import Schema
-from uuid import uuid4
 import azure.functions as func
 import json
 

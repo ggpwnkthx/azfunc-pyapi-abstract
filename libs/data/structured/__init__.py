@@ -1,34 +1,42 @@
 from libs.utils.decorators import staticproperty
-from typing import Any, Callable, Protocol, runtime_checkable
+from typing import Any, Callable, List, Protocol, runtime_checkable
 import inspect
 
 
 @runtime_checkable
-class KeyValue(Protocol):
+class Structured(Protocol):
     @staticproperty
     def SUPPORTED_SCHEMES(self) -> list:
         pass
+    
+    @property
+    def SCHEMA(self) -> list:
+        pass
 
-    def save(self, key: str, value: Any, encoder: Callable = None, **kwargs) -> None:
+    def save(self, key: str, value: Any, **kwargs) -> None:
         """Store the given value with the specified key in the storage provider."""
         pass
 
-    def load(self, key: str, decoder: Callable = None, **kwargs) -> Any:
+    def load(self, key: str, **kwargs) -> Any:
         """Retrieve the value associated with the specified key from the storage provider."""
+        pass
+    
+    def drop(self, key: str, **kwargs) -> None:
+        """"""
         pass
 
 
-class KeyValueRegistry:
+class StructuredRegistry:
     _providers = []
     
     @classmethod
     def get_protocol(cls):
-        return KeyValue
+        return Structured
 
     @classmethod
     def register(cls, provider_class):
         if (not inspect.isclass(provider_class) or not isinstance(
-            provider_class, KeyValue
+            provider_class, Structured
         )):
             raise TypeError(
                 "Only KeyValue StorageProviders can be registered."
@@ -37,10 +45,13 @@ class KeyValueRegistry:
             cls._providers.append(provider_class)
 
     @classmethod
-    def get_instance(cls, scheme, *args, **kwargs):
+    def get_instance(cls, scheme:str, *args, **kwargs):
         provider_class = None
         for provider in cls._providers:
             if scheme in provider.SUPPORTED_SCHEMES:
+                provider_class = provider
+                break
+            if cls.regex_schemes(scheme):
                 provider_class = provider
                 break
         if not provider_class:
@@ -54,6 +65,15 @@ class KeyValueRegistry:
             for provider in cls._providers
             for scheme in provider.SUPPORTED_SCHEMES
         ]
+
+
+    @classmethod
+    def regex_schemes(cls, scheme:str) -> bool:
+        for provider in cls._providers:
+            if hasattr(provider, "SUPPORTED_SCHEMES_REGEX"):
+                if provider.SUPPORTED_SCHEMES_REGEX(scheme):
+                    return True
+        return False
 
 
 import importlib
@@ -76,9 +96,9 @@ for py_file in base_path.glob("**/*.py"):
     for name, obj in inspect.getmembers(module):
         if (
             inspect.isclass(obj)
-            and isinstance(obj, KeyValue)
-            and obj != KeyValue
+            and isinstance(obj, Structured)
+            and obj != Structured
         ):
-            KeyValueRegistry.register(obj)
+            StructuredRegistry.register(obj)
 
 sys.path.pop(0)

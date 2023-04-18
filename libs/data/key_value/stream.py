@@ -43,7 +43,7 @@ class StreamStorageProvider:
                 self.connect(key, mode="w").write(value)
             else:
                 raise TypeError(
-                    "StreamStorageProvider can only save strings and bytes if an encoder is not specified."
+                    "StreamStorageProvider can only save strings and bytes. Use the encoder argument and any keyword arguments to transform the value into a bytes type object."
                 )
 
     def load(self, key: str, decoder: Callable = None, **kwargs) -> Any:

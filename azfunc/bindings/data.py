@@ -1,5 +1,4 @@
 import libs.data
-get = libs.data.from_bind
 
 libs.data.register_binding("current_thread", "KeyValue", "thread")
 
@@ -15,4 +14,12 @@ libs.data.register_binding(
             os.environ["AzureWebJobsStorage"]
         )
     },
+)
+
+libs.data.register_binding(
+    "general_sql",
+    "Structured",
+    "sql",
+    url=os.environ["data_sql_general"],
+    schemas=["dbo","esquire"]
 )
