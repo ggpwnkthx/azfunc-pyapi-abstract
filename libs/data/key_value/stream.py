@@ -7,7 +7,7 @@ import smart_open.transport
 _RENAME = {"azure": "azure_blob"}
 
 
-class StreamStorageProvider:
+class StreamKeyValueProvider:
     @staticproperty
     def SUPPORTED_SCHEMES(self):
         return list(

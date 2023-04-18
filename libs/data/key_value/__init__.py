@@ -4,7 +4,7 @@ import inspect
 
 
 @runtime_checkable
-class KeyValue(Protocol):
+class KeyValueProvider(Protocol):
     @staticproperty
     def SUPPORTED_SCHEMES(self) -> list:
         pass
@@ -23,15 +23,15 @@ class KeyValueRegistry:
     
     @classmethod
     def get_protocol(cls):
-        return KeyValue
+        return KeyValueProvider
 
     @classmethod
     def register(cls, provider_class):
         if (not inspect.isclass(provider_class) or not isinstance(
-            provider_class, KeyValue
+            provider_class, KeyValueProvider
         )):
             raise TypeError(
-                "Only KeyValue StorageProviders can be registered."
+                "Only KeyValueProviders can be registered."
             )
         if provider_class not in cls._providers:
             cls._providers.append(provider_class)
@@ -76,8 +76,8 @@ for py_file in base_path.glob("**/*.py"):
     for name, obj in inspect.getmembers(module):
         if (
             inspect.isclass(obj)
-            and isinstance(obj, KeyValue)
-            and obj != KeyValue
+            and isinstance(obj, KeyValueProvider)
+            and obj != KeyValueProvider
         ):
             KeyValueRegistry.register(obj)
 

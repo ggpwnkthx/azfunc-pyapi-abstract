@@ -2,7 +2,7 @@ from libs.utils.decorators import staticproperty
 from typing import Any, Callable
 
 
-class MemoryStorageProvider():
+class MemoryKeyValueProvider():
     @staticproperty
     def SUPPORTED_SCHEMES(self) -> list:
         return [

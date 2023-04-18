@@ -3,7 +3,7 @@ from libs.utils.threaded import current
 from typing import Any, Callable
 
 
-class ThreadMemoryStorageProvider:
+class ThreadKeyValueProvider:
     @staticproperty
     def SUPPORTED_SCHEMES(self) -> list:
         return ["thread"]
@@ -14,7 +14,7 @@ class ThreadMemoryStorageProvider:
 
     def __new__(cls, *args, **kwargs):
         if not hasattr(cls, "instance"):
-            cls.instance = super(ThreadMemoryStorageProvider, cls).__new__(cls)
+            cls.instance = super(ThreadKeyValueProvider, cls).__new__(cls)
             return cls.instance
 
     def save(self, key: str, value: Any, encoder: Callable = None, **kwargs) -> None:
