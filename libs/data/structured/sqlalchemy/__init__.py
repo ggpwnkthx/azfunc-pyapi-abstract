@@ -56,13 +56,6 @@ class SQLAlchemyStructuredProvider:
             for name, table in self.base.metadata.tables.items()
         }
 
-    def modulename_for_table(self, cls, tablename, table) -> str:
-        return (
-            f"{self.id}.{table.schema}"
-            if getattr(table, "schema", None)
-            else f"{self.id}.{self.DEFAULT_SCHEMA}"
-        )
-
     def __init__(self, *args, **kwargs) -> None:
         kw = kwargs.keys()
         kwargs.pop("scheme")
@@ -115,6 +108,9 @@ class SQLAlchemyStructuredProvider:
         #                 ),
         #             )
 
+    def __getitem__(self, handle):
+        return self.models[handle]
+    
     def connect(self) -> Session:
         return self.session()
 
@@ -131,7 +127,7 @@ class SQLAlchemyStructuredProvider:
             if not table_name and not schema:
                 table, key = self.parse_key(key)
             if table_name and not schema:
-                table = self.models[schema][table_name]
+                table = self[schema][table_name]
         record = session.query(table).get(key)
         if record:
             for k, v in value.items():
@@ -148,7 +144,7 @@ class SQLAlchemyStructuredProvider:
             if not table_name and not schema:
                 table, key = self.parse_key(key)
             if table_name and not schema:
-                table = self.models[schema][table_name]
+                table = self[schema][table_name]
         value = session.query(table).get(key)
         if value:
             value = value.__dict__
@@ -168,7 +164,7 @@ class SQLAlchemyStructuredProvider:
             if not table_name and not schema:
                 table, key = self.parse_key(key)
             if table_name and not schema:
-                table = self.models[self.DEFAULT_SCHEMA][table_name]
+                table = self[self.DEFAULT_SCHEMA][table_name]
         session.delete(session.query(table).get(key))
         session.commit()
 
@@ -176,4 +172,11 @@ class SQLAlchemyStructuredProvider:
         key = key.split(".")
         schema, table_name = key[0:2]
         key = ".".join(key[2:])
-        return self.models[schema][table_name], key
+        return self[schema][table_name], key
+
+    def modulename_for_table(self, cls, tablename, table) -> str:
+        return (
+            f"{self.id}.{table.schema}"
+            if getattr(table, "schema", None)
+            else f"{self.id}.{self.DEFAULT_SCHEMA}"
+        )
