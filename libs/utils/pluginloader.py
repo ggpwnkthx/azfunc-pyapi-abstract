@@ -5,7 +5,10 @@ import sys
 
 
 def load(path: str, file_mode: str = "init", depth: int = 0):
-    parent = Path(path).parent
+    if ".py" in path:
+        parent = Path(path).parent
+    else:
+        parent = Path(path)
     modules = []
     for root, dirs, files in os.walk(parent):
         current_depth = root[len(path) + len(os.path.sep) :].count(os.path.sep)
