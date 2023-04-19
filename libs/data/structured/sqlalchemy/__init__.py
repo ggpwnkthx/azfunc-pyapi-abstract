@@ -1,6 +1,6 @@
-from .schema import camelize_classname, pluralize_collection
+from .utils import camelize_classname, pluralize_collection
 from libs.utils.decorators import staticproperty
-from marshmallow_sqlalchemy import SQLAlchemyAutoSchema
+# from marshmallow_sqlalchemy import SQLAlchemyAutoSchema
 from sqlalchemy import create_engine, Engine
 from sqlalchemy.ext.automap import automap_base, AutomapBase
 from sqlalchemy.inspection import inspect
