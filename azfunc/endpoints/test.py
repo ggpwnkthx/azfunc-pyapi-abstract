@@ -9,6 +9,6 @@ import logging
 @app.route(route="test")
 def test_function(req: func.HttpRequest) -> func.HttpResponse:
     general_sql = libs.data.from_bind("general_sql")
-    table = general_sql.get_table(schema="esquire", name="locations")
-    logging.warn(general_sql.connect().query(table.notes).first())
+    logging.warn(dir(general_sql.models["esquire"]["geoframes"]))
+    logging.warn(general_sql.models["esquire"]["geoframes"].__marshmallow__)
     return func.HttpResponse(f"OK")

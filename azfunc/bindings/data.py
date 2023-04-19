@@ -16,10 +16,19 @@ libs.data.register_binding(
     },
 )
 
+from azure.data.tables import TableServiceClient
+
+libs.data.register_binding(
+    "general_table",
+    "KeyValue",
+    "azure_table",
+    client=TableServiceClient.from_connection_string(os.environ["AzureWebJobsStorage"]),
+)
+
 libs.data.register_binding(
     "general_sql",
     "Structured",
     "sql",
-    url=os.environ["data_sql_general"],
-    schemas=["dbo","esquire"]
+    url=os.environ["DATABIND_SQL_GENERAL"],
+    schemas=["esquire","dbo"],
 )

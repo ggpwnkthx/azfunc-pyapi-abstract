@@ -9,7 +9,7 @@ import os
 import uuid
 
 
-SERIALIZER = URLSafeTimedSerializer(os.environ["session_secret"])
+SERIALIZER = URLSafeTimedSerializer(os.environ["SESSION_SECRET"])
 
 
 class SessionApi(DecoratorApi, ABC):
@@ -35,7 +35,7 @@ class SessionApi(DecoratorApi, ABC):
                     if token := cookies.get("SessionToken"):
                         try:
                             current.session = SERIALIZER.loads(
-                                token, max_age=int(os.environ["session_max_age"])
+                                token, max_age=int(os.environ["SESSION_MAX_AGE"])
                             )
                         except:
                             pass

@@ -3,6 +3,7 @@ from libs.utils.threaded import current
 from marshmallow import Schema
 import azure.functions as func
 import json
+import os
 
 
 @app.thread_scope()  # current.request, current.response, current.azfunc
@@ -29,7 +30,7 @@ def api_v1_jsonapi(req: func.HttpRequest, context: func.Context) -> func.HttpRes
                     else None
                 )
 
-                page_size = 100
+                page_size = os.environ.get("DEFAULT_JSONAPI_PAGE_SIZE") or 100
                 page_num = 0
                 if "page" in current.jsonapi["request"]["action"].keys():
                     page_size = (
