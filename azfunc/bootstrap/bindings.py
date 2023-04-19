@@ -2,6 +2,12 @@ import libs.data
 
 libs.data.register_binding("current_thread", "KeyValue", "thread")
 
+
+import logging
+
+logger = logging.getLogger("azure")
+logger.setLevel(logging.WARNING)
+
 import os
 from azure.storage.blob import BlobServiceClient
 
@@ -30,5 +36,5 @@ libs.data.register_binding(
     "Structured",
     "sql",
     url=os.environ["DATABIND_SQL_GENERAL"],
-    schemas=["esquire","dbo"],
+    schemas=["esquire", "dbo"],
 )
