@@ -1,10 +1,10 @@
 from libs.utils.decorators import staticproperty
-from typing import Any, Callable
+from typing import Any, Callable, List
 
 
 class MemoryKeyValueProvider():
     @staticproperty
-    def SUPPORTED_SCHEMES(self) -> list:
+    def SUPPORTED_SCHEMES(self) -> List[str]:
         return [
             "ram"
         ]

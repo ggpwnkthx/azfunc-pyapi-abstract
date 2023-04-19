@@ -1,4 +1,4 @@
-from typing import Any, Protocol, runtime_checkable
+from typing import List, Protocol, runtime_checkable
 
 
 @runtime_checkable
@@ -13,77 +13,65 @@ class StorageProvider(Protocol):
 @runtime_checkable
 class StorageProviderRegistry(Protocol):
     @classmethod
-    def get_protocol(cls):
+    def get_protocol(cls) -> Protocol:
         pass
 
     @classmethod
-    def register(cls, provider_class):
+    def register(cls, provider_class) -> None:
         pass
 
     @classmethod
-    def get_instance(cls, schema, *args, **kwargs):
+    def get_instance(cls, schema, *args, **kwargs) -> StorageProvider:
         pass
 
     @classmethod
-    def get_schemes(cls):
+    def get_schemes(cls) -> List[str]:
+        pass
+
+    @classmethod
+    def load_modules(cls) -> None:
         pass
 
 
-import importlib
+from libs.utils.pluginloader import load
 import inspect
-from pathlib import Path
 
 _REGISTRY = {}
-
-
-current_directory = Path(__file__).parent
-for subdir in [d for d in current_directory.iterdir() if d.is_dir()]:
-    init_file = subdir / "__init__.py"
-    if init_file.exists():
-        relative_path = subdir.relative_to(Path.cwd())
-        module_name = ".".join(relative_path.parts)
-        module = importlib.import_module(module_name)
-        for name, obj in inspect.getmembers(module):
-            if (
-                inspect.isclass(obj)
-                and isinstance(obj, StorageProviderRegistry)
-                and obj != StorageProviderRegistry
-            ):
-                _REGISTRY[name] = obj
+for module in load(path=__file__, depth=1):
+    for name, obj in inspect.getmembers(module):
+        if isinstance(obj, StorageProviderRegistry):
+            _REGISTRY[name] = obj
+            obj.load_modules()
 
 
 def get_provider(protocol: str, scheme: str, *args, **kwargs) -> StorageProvider:
     global _REGISTRY
-    for name, cls in _REGISTRY.items():
-        if protocol == cls.get_protocol() or protocol == cls.get_protocol().__name__:
-            if scheme in cls.get_schemes():
-                return cls.get_instance(scheme, *args, **kwargs)
-            if hasattr(cls, "regex_schemes"):
-                if cls.regex_schemes(scheme):
-                    return cls.get_instance(scheme, *args, **kwargs)
-    raise ValueError(
-        f"Storage provider for the '{protocol}' protocol and '{scheme}' schema is not supported."
-    )
+    cls = _REGISTRY.get(protocol) or _REGISTRY.get(protocol + "Registry")
+    if scheme in cls.get_schemes():
+        return cls.get_instance(scheme, *args, **kwargs)
+    if hasattr(cls, "regex_schemes"):
+        if cls.regex_schemes(scheme):
+            return cls.get_instance(scheme, *args, **kwargs)
 
 
-def get_supported():
+def get_supported() -> dict:
     global _REGISTRY
     return {
-        cls.get_protocol().__name__: cls.get_schemes()
-        for name, cls in _REGISTRY.items()
+        cls.get_protocol().__name__: cls.get_schemes() for _, cls in _REGISTRY.items()
     }
 
 
 _BINDINGS = {}
 
 
-def register_binding(handle: str, protocol: str, scheme: str, *args, **kwargs):
+def register_binding(handle: str, protocol: str, scheme: str, *args, **kwargs) -> None:
     global _BINDINGS
     if handle not in _BINDINGS:
         _BINDINGS[handle] = get_provider(protocol, scheme, *args, **kwargs)
 
 
 def from_bind(handle: str) -> StorageProvider:
+    global _BINDINGS
     if handle in _BINDINGS:
         return _BINDINGS[handle]
     return None

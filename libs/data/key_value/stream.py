@@ -1,7 +1,7 @@
 from libs.utils.decorators import staticproperty
 from shutil import copyfileobj
 from smart_open import open
-from typing import Any, Callable
+from typing import Any, Callable, List
 import smart_open.transport
 
 _RENAME = {"azure": "azure_blob"}
@@ -9,7 +9,7 @@ _RENAME = {"azure": "azure_blob"}
 
 class StreamKeyValueProvider:
     @staticproperty
-    def SUPPORTED_SCHEMES(self):
+    def SUPPORTED_SCHEMES(self) -> List[str]:
         return list(
             map(
                 lambda x: _RENAME[x] if x in _RENAME else x,

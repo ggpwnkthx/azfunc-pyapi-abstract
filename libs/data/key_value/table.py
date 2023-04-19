@@ -1,15 +1,10 @@
 from libs.utils.decorators import staticproperty
-from typing import Any, Callable
-
-from azure.data.tables import TableClient
-
-
-_RENAME = {}
+from typing import Any, Callable, List
 
 
 class TableKeyValueProvider:
     @staticproperty
-    def SUPPORTED_SCHEMES(self):
+    def SUPPORTED_SCHEMES(self) -> List[str]:
         return ["azure_table"]
 
     def __init__(self, *args, **kwargs) -> None:
@@ -17,9 +12,6 @@ class TableKeyValueProvider:
             self.scheme = args[0]
         if "scheme" in kwargs:
             self.scheme = kwargs.pop("scheme")
-        for key, value in _RENAME.items():
-            if self.scheme == value:
-                self.scheme = key
         self.config = {**kwargs}
 
     def connect(self, key: str, **kwargs) -> Any:
@@ -43,8 +35,8 @@ class TableKeyValueProvider:
         key = key.split("/")
         match self.scheme:
             case "azure_table":
-                value = conn.get_entity(partition_key = key[1], row_key = key[2])
-                
+                value = conn.get_entity(partition_key=key[1], row_key=key[2])
+
         return decoder(value) if decoder else value
 
     def drop(self, key: str, **kwargs) -> None:
@@ -52,5 +44,5 @@ class TableKeyValueProvider:
         key = key.split("/")
         match self.scheme:
             case "azure_table":
-                conn.delete_entity(partition_key = key[1], row_key = key[2])
+                conn.delete_entity(partition_key=key[1], row_key=key[2])
         pass
