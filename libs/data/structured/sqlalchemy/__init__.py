@@ -91,10 +91,9 @@ class SQLAlchemyStructuredProvider:
             self.base.prepare(
                 autoload_with=self.engine,
                 schema=schema,
-                # classname_for_table=camelize_classname,
-                # name_for_collection_relationship=pluralize_collection,
                 modulename_for_table=self.modulename_for_table,
             )
+        self.models = self.base.by_module.get(self.id)
         # for engine in self.base.by_module.keys():
         #     for schema in self.base.by_module[engine].keys():
         #         for model in self.base.by_module[engine][schema].keys():
@@ -115,7 +114,6 @@ class SQLAlchemyStructuredProvider:
         #                     },
         #                 ),
         #             )
-        self.models = self.base.by_module.get(self.id)
 
     def connect(self) -> Session:
         return self.session()
@@ -133,7 +131,7 @@ class SQLAlchemyStructuredProvider:
             if not table_name and not schema:
                 table, key = self.parse_key(key)
             if table_name and not schema:
-                table = self.get_model(name=table_name, schema=schema)
+                table = self.models[schema][table_name]
         record = session.query(table).get(key)
         if record:
             for k, v in value.items():
@@ -150,9 +148,11 @@ class SQLAlchemyStructuredProvider:
             if not table_name and not schema:
                 table, key = self.parse_key(key)
             if table_name and not schema:
-                table = self.get_model(name=table_name, schema=schema)
-        value = session.query(table).get(key).__dict__
-        value.pop("_sa_instance_state")
+                table = self.models[schema][table_name]
+        value = session.query(table).get(key)
+        if value:
+            value = value.__dict__
+            value.pop("_sa_instance_state")
         return value
 
     def filter(
@@ -168,27 +168,12 @@ class SQLAlchemyStructuredProvider:
             if not table_name and not schema:
                 table, key = self.parse_key(key)
             if table_name and not schema:
-                table = self.get_model(name=table_name, schema=schema)
+                table = self.models[self.DEFAULT_SCHEMA][table_name]
         session.delete(session.query(table).get(key))
         session.commit()
-
-    def get_model(self, name: str, schema: str = None) -> Any:
-        return getattr(
-            getattr(
-                getattr(
-                    self.base.by_module,
-                    self.id,
-                    None,
-                ),
-                schema or self.DEFAULT_SCHEMA,
-                None,
-            ),
-            name,
-            None,
-        )
 
     def parse_key(self, key: str) -> Any:
         key = key.split(".")
         schema, table_name = key[0:2]
         key = ".".join(key[2:])
-        return self.get_model(name=table_name, schema=schema), key
+        return self.models[schema][table_name], key
