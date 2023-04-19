@@ -1,11 +1,11 @@
 from libs.utils.decorators import staticproperty
 from libs.utils.threaded import current
-from typing import Any, Callable
+from typing import Any, Callable, List
 
 
 class ThreadKeyValueProvider:
     @staticproperty
-    def SUPPORTED_SCHEMES(self) -> list:
+    def SUPPORTED_SCHEMES(self) -> List[str]:
         return ["thread"]
 
     @staticproperty
