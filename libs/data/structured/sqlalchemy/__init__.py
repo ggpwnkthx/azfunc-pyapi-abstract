@@ -1,22 +1,29 @@
+from .schema import camelize_classname, pluralize_collection
 from libs.utils.decorators import staticproperty
-from typing import Any, Callable, List
-from sqlalchemy import create_engine
-from sqlalchemy.ext.automap import automap_base
+from marshmallow_sqlalchemy import SQLAlchemyAutoSchema
+from sqlalchemy import create_engine, Engine
+from sqlalchemy.ext.automap import automap_base, AutomapBase
 from sqlalchemy.inspection import inspect
 from sqlalchemy.orm import Session
+from typing import Any, Callable, List
+import uuid
+
+from libs.utils.logger import get as Logger
+
+logger = Logger("SQLAlchemyStructuredProvider")
 
 
-class SQLAlchemyStorageProvider:
+class SQLAlchemyStructuredProvider:
     @staticproperty
     def SUPPORTED_SCHEMES(self) -> list:
         return ["sql"]
 
     @staticproperty
     def DEFAULT_SCHEMA(self) -> str:
-        return self.DEFAULT_SCHEMA
+        return "default"
 
     @property
-    def SCHEMA(self) -> list:
+    def SCHEMA(self) -> dict:
         return {
             name: {
                 "fields": {
@@ -49,43 +56,67 @@ class SQLAlchemyStorageProvider:
             for name, table in self.base.metadata.tables.items()
         }
 
-    def prefix_tablename_with_schema(self, cls, tablename, table):
-        if table.schema is not None:
-            return table.schema
-        else:
-            return self.DEFAULT_SCHEMA
+    def modulename_for_table(self, cls, tablename, table) -> str:
+        return (
+            f"{self.id}.{table.schema}"
+            if getattr(table, "schema", None)
+            else f"{self.id}.{self.DEFAULT_SCHEMA}"
+        )
 
     def __init__(self, *args, **kwargs) -> None:
-        if len(args):
-            self.scheme = args[0]
-        if "scheme" in kwargs:
-            self.scheme = kwargs.pop("scheme")
-
-        if "schemas" in kwargs:
-            self.schemas = kwargs.pop("schemas")
-        else:
-            self.schemas = []
-        if "url" in kwargs:
-            self.engine = create_engine(kwargs.pop("url"), **kwargs)
-        elif "engine" in kwargs:
-            self.engine = kwargs.pop("engine")
-        else:
+        kw = kwargs.keys()
+        kwargs.pop("scheme")
+        self.id: str = uuid.uuid4().hex
+        self.schemas: List[str] = (
+            kwargs.pop("schemas")
+            if "schemas" in kw
+            else [kwargs.pop("schema")]
+            if "schema" in kw
+            else []
+        )
+        self.engine: Engine = (
+            kwargs.pop("engine")
+            if "engine" in kw
+            else create_engine(kwargs.pop("url"), **kwargs)
+            if "url" in kw
+            else None
+        )
+        if not self.engine:
             raise Exception("No engine configuration values specified.")
-        self.base = automap_base()
-        if len(self.schemas):
-            for schema in self.schemas:
-                self.base.prepare(
-                    self.engine,
-                    schema=schema,
-                    modulename_for_table=self.prefix_tablename_with_schema,
-                )
-        else:
-            self.base.prepare(
-                self.engine, modulename_for_table=self.prefix_tablename_with_schema
-            )
 
-        self.session = lambda: Session(self.engine)
-    
+        self.base: AutomapBase = automap_base()
+        self.session: Callable = lambda: Session(self.engine)
+
+        for schema in self.schemas:
+            self.base.prepare(
+                autoload_with=self.engine,
+                schema=schema,
+                # classname_for_table=camelize_classname,
+                # name_for_collection_relationship=pluralize_collection,
+                modulename_for_table=self.modulename_for_table,
+            )
+        # for engine in self.base.by_module.keys():
+        #     for schema in self.base.by_module[engine].keys():
+        #         for model in self.base.by_module[engine][schema].keys():
+        #             setattr(
+        #                 self.base.by_module[engine][schema][model],
+        #                 "__marshmallow__",
+        #                 type(
+        #                     self.base.by_module[engine][schema][model].__name__ + "Schema",
+        #                     (SQLAlchemyAutoSchema,),
+        #                     {
+        #                         "Meta": type(
+        #                             "Meta",
+        #                             (object,),
+        #                             {
+        #                                 "model": self.base.by_module[engine][schema][model],
+        #                             },
+        #                         )
+        #                     },
+        #                 ),
+        #             )
+        self.models = self.base.by_module.get(self.id)
+
     def connect(self) -> Session:
         return self.session()
 
@@ -102,7 +133,7 @@ class SQLAlchemyStorageProvider:
             if not table_name and not schema:
                 table, key = self.parse_key(key)
             if table_name and not schema:
-                table = self.get_table(name=table_name, schema=schema)
+                table = self.get_model(name=table_name, schema=schema)
         record = session.query(table).get(key)
         if record:
             for k, v in value.items():
@@ -119,9 +150,9 @@ class SQLAlchemyStorageProvider:
             if not table_name and not schema:
                 table, key = self.parse_key(key)
             if table_name and not schema:
-                table = self.get_table(name=table_name, schema=schema)
+                table = self.get_model(name=table_name, schema=schema)
         value = session.query(table).get(key).__dict__
-        value.pop('_sa_instance_state')
+        value.pop("_sa_instance_state")
         return value
 
     def filter(
@@ -129,21 +160,26 @@ class SQLAlchemyStorageProvider:
     ) -> List[Any]:
         pass
 
-    def drop(self, key: str, table_name: str = None, schema: str = None, table=None
+    def drop(
+        self, key: str, table_name: str = None, schema: str = None, table=None
     ) -> None:
         session = self.session()
         if not table:
             if not table_name and not schema:
                 table, key = self.parse_key(key)
             if table_name and not schema:
-                table = self.get_table(name=table_name, schema=schema)
+                table = self.get_model(name=table_name, schema=schema)
         session.delete(session.query(table).get(key))
         session.commit()
-    
-    def get_table(self, name: str, schema: str = None):
+
+    def get_model(self, name: str, schema: str = None) -> Any:
         return getattr(
             getattr(
-                self.base.by_module,
+                getattr(
+                    self.base.by_module,
+                    self.id,
+                    None,
+                ),
                 schema or self.DEFAULT_SCHEMA,
                 None,
             ),
@@ -151,9 +187,8 @@ class SQLAlchemyStorageProvider:
             None,
         )
 
-    def parse_key(self, key: str):
+    def parse_key(self, key: str) -> Any:
         key = key.split(".")
         schema, table_name = key[0:2]
         key = ".".join(key[2:])
-        return self.get_table(name=table_name, schema=schema), key
-
+        return self.get_model(name=table_name, schema=schema), key

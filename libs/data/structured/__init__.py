@@ -1,16 +1,19 @@
-from libs.utils.decorators import staticproperty
-from typing import Any, Callable, List, Protocol, runtime_checkable
+import functools
+from libs.utils.decorators import staticproperty, immutable_arguments
+from libs.utils.pluginloader import load
+from typing import Any, List, Protocol, runtime_checkable
 import inspect
 
 
 @runtime_checkable
-class Structured(Protocol):
+class StructuredProvider(Protocol):
     @staticproperty
     def SUPPORTED_SCHEMES(self) -> list:
         pass
-    
+
     @property
-    def SCHEMA(self) -> list:
+    def SCHEMA(self) -> dict:
+        """Returns a dictionary representing the structure's schema."""
         pass
 
     def save(self, key: str, value: Any, **kwargs) -> None:
@@ -20,7 +23,7 @@ class Structured(Protocol):
     def load(self, key: str, **kwargs) -> Any:
         """Retrieve the value associated with the specified key from the storage provider."""
         pass
-    
+
     def drop(self, key: str, **kwargs) -> None:
         """"""
         pass
@@ -28,24 +31,24 @@ class Structured(Protocol):
 
 class StructuredRegistry:
     _providers = []
-    
-    @classmethod
-    def get_protocol(cls):
-        return Structured
 
     @classmethod
-    def register(cls, provider_class):
-        if (not inspect.isclass(provider_class) or not isinstance(
-            provider_class, Structured
-        )):
-            raise TypeError(
-                "Only KeyValue StorageProviders can be registered."
-            )
+    def get_protocol(cls) -> Protocol:
+        return StructuredProvider
+
+    @classmethod
+    def register(cls, provider_class) -> None:
+        if not inspect.isclass(provider_class) or not isinstance(
+            provider_class, StructuredProvider
+        ):
+            raise TypeError("Only KeyValue StorageProviders can be registered.")
         if provider_class not in cls._providers:
             cls._providers.append(provider_class)
 
     @classmethod
-    def get_instance(cls, scheme:str, *args, **kwargs):
+    @immutable_arguments
+    @functools.cache
+    def get_instance(cls, scheme: str, *args, **kwargs) -> StructuredProvider:
         provider_class = None
         for provider in cls._providers:
             if scheme in provider.SUPPORTED_SCHEMES:
@@ -55,50 +58,34 @@ class StructuredRegistry:
                 provider_class = provider
                 break
         if not provider_class:
-            raise ValueError(f"Storage provider for the '{scheme}' scheme is not supported.")
+            raise ValueError(
+                f"Storage provider for the '{scheme}' scheme is not supported."
+            )
         return provider_class(scheme=scheme, *args, **kwargs)
 
     @classmethod
-    def get_schemes(cls):
+    def get_schemes(cls) -> List[str]:
         return [
             scheme
             for provider in cls._providers
             for scheme in provider.SUPPORTED_SCHEMES
         ]
 
-
     @classmethod
-    def regex_schemes(cls, scheme:str) -> bool:
+    def regex_schemes(cls, scheme: str) -> bool:
         for provider in cls._providers:
             if hasattr(provider, "SUPPORTED_SCHEMES_REGEX"):
                 if provider.SUPPORTED_SCHEMES_REGEX(scheme):
                     return True
         return False
 
-
-import importlib
-import sys
-from pathlib import Path
-
-current_file_path = Path(__file__).resolve()
-base_path = current_file_path.parent
-sys.path.insert(0, str(base_path.parent))
-
-for py_file in base_path.glob("**/*.py"):
-    if py_file.name.startswith("__"):
-        continue
-
-    relative_path = py_file.relative_to(Path.cwd()).with_suffix("")
-    module_name = ".".join(relative_path.parts)
-
-    module = importlib.import_module(module_name)
-
-    for name, obj in inspect.getmembers(module):
-        if (
-            inspect.isclass(obj)
-            and isinstance(obj, Structured)
-            and obj != Structured
-        ):
-            StructuredRegistry.register(obj)
-
-sys.path.pop(0)
+    @classmethod
+    def load_modules(cls) -> None:
+        for module in load(path=__file__, file_mode="all", depth=-1):
+            for _, obj in inspect.getmembers(module):
+                if (
+                    inspect.isclass(obj)
+                    and isinstance(obj, StructuredProvider)
+                    and obj != StructuredProvider
+                ):
+                    StructuredRegistry.register(obj)
