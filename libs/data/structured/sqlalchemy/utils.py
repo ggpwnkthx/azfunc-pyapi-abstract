@@ -1,3 +1,4 @@
+from typing import Any, Callable
 import re
 import inflect
 
@@ -32,3 +33,24 @@ def pluralize_collection(base, local_cls, referred_cls, constraint):
     pluralized = _pluralizer.plural(uncamelized)
     return pluralized
 
+
+from sqlalchemy.orm import Session
+
+
+def extend_model(model: Any, session: Session) -> None:
+    setattr(model, "__class_getitem__", model_get(session))
+    setattr(model, "__getitem__", lambda self, key: getattr(self, key))
+    setattr(model, "__setitem__", model_set_column)
+
+
+def model_get(session: Session) -> Callable:
+    @classmethod
+    def __class_getitem__(cls, id) -> Any:
+        return session().query(cls).get(id)
+
+    return __class_getitem__
+
+
+def model_set_column(self: object, key: str, value: Any) -> None:
+    setattr(self, key, value)
+    self._sa_instance_state.session.commit()

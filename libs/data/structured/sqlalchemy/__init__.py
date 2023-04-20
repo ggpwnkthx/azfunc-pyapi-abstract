@@ -1,5 +1,6 @@
-from .utils import camelize_classname, pluralize_collection
+from .utils import extend_model
 from libs.utils.decorators import staticproperty
+
 # from marshmallow_sqlalchemy import SQLAlchemyAutoSchema
 from sqlalchemy import create_engine, Engine
 from sqlalchemy.ext.automap import automap_base, AutomapBase
@@ -7,10 +8,6 @@ from sqlalchemy.inspection import inspect
 from sqlalchemy.orm import Session
 from typing import Any, Callable, List
 import uuid
-
-from libs.utils.logger import get as Logger
-
-logger = Logger("SQLAlchemyStructuredProvider")
 
 
 class SQLAlchemyStructuredProvider:
@@ -87,30 +84,13 @@ class SQLAlchemyStructuredProvider:
                 modulename_for_table=self.modulename_for_table,
             )
         self.models = self.base.by_module.get(self.id)
-        # for engine in self.base.by_module.keys():
-        #     for schema in self.base.by_module[engine].keys():
-        #         for model in self.base.by_module[engine][schema].keys():
-        #             setattr(
-        #                 self.base.by_module[engine][schema][model],
-        #                 "__marshmallow__",
-        #                 type(
-        #                     self.base.by_module[engine][schema][model].__name__ + "Schema",
-        #                     (SQLAlchemyAutoSchema,),
-        #                     {
-        #                         "Meta": type(
-        #                             "Meta",
-        #                             (object,),
-        #                             {
-        #                                 "model": self.base.by_module[engine][schema][model],
-        #                             },
-        #                         )
-        #                     },
-        #                 ),
-        #             )
+        for schema in self.models.keys():
+            for model in self.models[schema].keys():
+                extend_model(model=self.models[schema][model], session=self.session)
 
     def __getitem__(self, handle):
         return self.models[handle]
-    
+
     def connect(self) -> Session:
         return self.session()
 
