@@ -1,16 +1,16 @@
 from libs.utils.geometry import wkt2geojson, geojson2wkt
 # from geojson import GeoJSON
-from sqlalchemy import func, JSON
+from sqlalchemy import func
 from sqlalchemy.sql.expression import text
 from sqlalchemy.sql.schema import Column
-from sqlalchemy.types import UserDefinedType, TypeEngine
+from sqlalchemy.types import UserDefinedType, TypeEngine, BINARY, BLOB
 
 
 class Geography(UserDefinedType):
     cache_ok = False
     
     __visit_name__ = "GEOGRAPHY"
-    impl = JSON
+    impl = BINARY
 
     def __init__(self, srid: int = 4326):
         self.srid = srid
@@ -56,4 +56,4 @@ class Geography(UserDefinedType):
 
 
 from sqlalchemy.dialects.mssql.base import ischema_names as mssql_ischema_names
-mssql_ischema_names["geography"] = Geography
+mssql_ischema_names["geography"] = BLOB

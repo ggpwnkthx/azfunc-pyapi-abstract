@@ -3,7 +3,7 @@
 """
 
 import logging
-import json
+import simplejson as json
 from azure.data.tables import TableServiceClient
 from azure.core.credentials import (
     AzureKeyCredential,

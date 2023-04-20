@@ -8,10 +8,15 @@ from azure.functions.decorators.utils import (
     parse_singular_param_to_enum,
     parse_iterable_param_to_enums,
 )
+from azure.functions import HttpResponse as AzureHttpResponse
 from functools import wraps
+from http import HTTPStatus
 from libs.utils.threaded import current
+from marshmallow_jsonapi import Schema, fields
 from typing import Callable, Dict, Optional, Union, Iterable
 import copy
+import re
+import logging
 
 
 class JsonApi(DecoratorApi, ABC):
@@ -36,7 +41,8 @@ class JsonApi(DecoratorApi, ABC):
                         methods=parse_iterable_param_to_enums(methods, HttpMethod),
                         auth_level=parse_singular_param_to_enum(auth_level, AuthLevel),
                         route=route_prefix
-                        + "jsonapi/{resource_type}/{resource_id?}/{relation_type?}/{relation_id?}",
+                        + ("/" if route_prefix[-1] != "/" else "")
+                        + "{resource_type}/{resource_id?}/{relation_type?}/{relation_id?}",
                         **trigger_extra_fields,
                     )
                 )
@@ -59,11 +65,20 @@ class JsonApi(DecoratorApi, ABC):
                     )
                     try:
                         current.jsonapi = {}
+                        prefix = route_prefix
+                        keys = re.findall(r"{[^{]*?}", prefix)
+                        for key in keys:
+                            prefix = prefix.replace(
+                                key,
+                                function_kwargs[trigger_arg_name].route_params.get(
+                                    key.replace("{", "").replace("}", "").split(":")[0]
+                                ),
+                            )
                         current.jsonapi["request"] = function_kwargs[
                             trigger_arg_name
-                        ].get_jsonapi()
+                        ].get_jsonapi(prefix=prefix)
                     except Exception as e:
-                        if hasattr(e,"status_code"):
+                        if hasattr(e, "status_code"):
                             abort(
                                 headers={"Content-Type": "application/vnd.api+json"},
                                 status_code=e.status_code,
@@ -72,33 +87,41 @@ class JsonApi(DecoratorApi, ABC):
                         else:
                             raise e
                     default: HttpResponse = inner(*function_args, **function_kwargs)
-                    if isinstance(default, HttpResponse):
+                    if not default:
+                        return HttpResponse(status_code=HTTPStatus.NOT_FOUND)
+                    elif isinstance(default, AzureHttpResponse):
                         return default
                     elif "response" in current.jsonapi.keys():
                         return HttpResponse(
                             current.jsonapi["response"],
                             headers={"Content-Type": "application/vnd.api+json"},
                         )
+                    elif hasattr(default, "__marshmallow__"):
+                        return HttpResponse(
+                            {
+                                "links": {
+                                    "self": function_kwargs[trigger_arg_name].url
+                                },
+                                "data": default.__marshmallow__().dump(default),
+                            },
+                            headers={"Content-Type": "application/vnd.api+json"},
+                        )
                     else:
                         match function_kwargs[trigger_arg_name].method:
                             case "GET":
-                                if default is None:
-                                    return HttpResponse("", 404)
-                                else:
-                                    return HttpResponse(
-                                        {
-                                            "links": {
-                                                "self": function_kwargs[
-                                                    trigger_arg_name
-                                                ].url
-                                            },
-                                            "data": default
+                                return HttpResponse(
+                                    {
+                                        "links": {
+                                            "self": function_kwargs[
+                                                trigger_arg_name
+                                            ].url
                                         },
-                                        headers={
-                                            "Content-Type": "application/vnd.api+json"
-                                        },
-                                    )
-                                    
+                                        "data": default,
+                                    },
+                                    headers={
+                                        "Content-Type": "application/vnd.api+json"
+                                    },
+                                )
 
                 fb._function._func = outer
                 return fb

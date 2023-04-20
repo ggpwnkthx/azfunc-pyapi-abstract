@@ -8,6 +8,7 @@ geojson
 inflect
 itsdangerous
 marshmallow
+marshmallow-jsonapi
 marshmallow-sqlalchemy
 msal
 pandas
@@ -19,6 +20,7 @@ python-magic
 python-magic-bin
 querystring-parser
 shapely
+simplejson
 smart-open
 sqlalchemy
 traitlets>=5.5.0

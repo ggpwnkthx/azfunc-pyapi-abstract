@@ -8,6 +8,6 @@ from azure.functions.decorators import FunctionApp
 from typing import Union
 
 
-class FunctionApp(FunctionApp, DFApp, ThreadScope, Idenity, SessionApi, JsonApi):
+class FunctionApp(DFApp, FunctionApp, ThreadScope, Idenity, SessionApi, JsonApi):
     def __init__(self, http_auth_level: Union[AuthLevel, str] = AuthLevel.FUNCTION):
         super().__init__(http_auth_level)

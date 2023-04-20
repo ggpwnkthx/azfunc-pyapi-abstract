@@ -3,7 +3,7 @@ from .exceptions import *
 # from ..odata import build as build_odata_query
 from querystring_parser import parser
 from urllib.parse import urlparse, ParseResult
-import json
+import simplejson as json
 
 
 JSONAPI_VERSION = "1.1"
@@ -67,7 +67,6 @@ def parse_query(query_string: str):
 
     return query
 
-
 def parse_request(
     url: str,
     method: str,
@@ -80,29 +79,29 @@ def parse_request(
 
     # parse resource location
     url: ParseResult = urlparse(url)
-
+    prefix += "/" if prefix[-1] != "/" else ""
     path = url.path.split(prefix)[1].split("/")
     match len(path):
         case 4:
             if path[2] == "relationships":
                 resource = {
-                    "type": path[0].lower(),
+                    "type": path[0],
                     "id": path[1],
-                    "relation": path[3].lower(),
+                    "relation": path[3],
                 }
             else:
-                resource = {"type": path[2].lower(), "id": path[3]}
+                resource = {"type": path[2], "id": path[3]}
 
         case 3:
             resource = {
-                "type": path[0].lower(),
+                "type": path[0],
                 "id": path[1],
-                "relation": path[2].lower(),
+                "relation": path[2],
             }
         case 2:
-            resource = {"type": path[0].lower(), "id": path[1]}
+            resource = {"type": path[0], "id": path[1]}
         case 1:
-            resource = {"type": path[0].lower()}
+            resource = {"type": path[0]}
 
     request = {
         "resource": resource,

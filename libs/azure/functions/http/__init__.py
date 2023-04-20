@@ -2,7 +2,7 @@ from ....utils.jsonapi import parse_request
 from azure.functions import HttpRequest, HttpResponse
 from datetime import datetime
 from werkzeug.local import LocalProxy
-import json
+import simplejson as json
 import typing
 
 

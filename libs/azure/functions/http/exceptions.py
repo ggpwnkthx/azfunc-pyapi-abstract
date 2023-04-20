@@ -1,5 +1,5 @@
 from ..http import HttpResponse
-import json
+import simplejson as json
 
 
 class HttpAbort(Exception):

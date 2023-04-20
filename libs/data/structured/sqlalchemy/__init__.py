@@ -120,16 +120,15 @@ class SQLAlchemyStructuredProvider:
         self, key: str, table_name: str = None, schema: str = None, table=None
     ) -> Any:
         session = self.session()
-        if not table:
-            if not table_name and not schema:
-                table, key = self.parse_key(key)
-            if table_name and not schema:
-                table = self[schema][table_name]
-        value = session.query(table).get(key)
-        if value:
-            value = value.__dict__
-            value.pop("_sa_instance_state")
-        return value
+        try:
+            if not table:
+                if not table_name and not schema:
+                    table, key = self.parse_key(key)
+                if table_name and not schema:
+                    table = self[schema][table_name]
+            return session.query(table).get(key)
+        except:
+            return None
 
     def filter(
         self, filters: List[str], decoder: Callable = None, **kwargs

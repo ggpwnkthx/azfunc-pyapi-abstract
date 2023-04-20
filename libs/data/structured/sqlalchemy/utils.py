@@ -35,12 +35,35 @@ def pluralize_collection(base, local_cls, referred_cls, constraint):
 
 
 from sqlalchemy.orm import Session
+from marshmallow_sqlalchemy import SQLAlchemyAutoSchema
+import simplejson
 
 
 def extend_model(model: Any, session: Session) -> None:
     setattr(model, "__class_getitem__", model_get(session))
     setattr(model, "__getitem__", lambda self, key: getattr(self, key))
     setattr(model, "__setitem__", model_set_column)
+    setattr(
+        model,
+        "__marshmallow__",
+        type(
+            f"{model.__name__}Schema",
+            (SQLAlchemyAutoSchema,),
+            {
+                "Meta": type(
+                    "Meta",
+                    (object,),
+                    {
+                        "model": model,
+                        "sqla_session": session,
+                        "render_module": simplejson,
+                    },
+                )
+            },
+        ),
+    )
+    setattr(model, "__repr__", lambda self: self.__marshmallow__().dumps(self))
+    setattr(model, "__json__", lambda self: simplejson.loads(str(self)))
 
 
 def model_get(session: Session) -> Callable:
