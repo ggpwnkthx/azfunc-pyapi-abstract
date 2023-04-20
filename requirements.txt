@@ -1,5 +1,6 @@
 azure-data-tables
 azure-functions
+azure-functions-durable
 azure-storage-blob
 base58
 frozendict

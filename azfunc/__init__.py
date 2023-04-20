@@ -1,15 +1,18 @@
 from libs.utils.pluginloader import load
 from pathlib import Path
-__bootstrap__ = str(Path(Path(__file__).parent, "bootstrap"))
-__endpoints__ = str(Path(Path(__file__).parent, "endpoints"))
+__parent__ = str(Path(__file__).parent)
+__bootstrap__ = str(Path(__parent__, "bootstrap"))
+__durable__ = str(Path(__parent__, "durable"))
+__endpoints__ = str(Path(__parent__, "endpoints"))
 
 # Bootstrap
 load(__bootstrap__, file_mode="all", depth=-1)
 
 # Create App Instance
-import libs.azure.functions as func
+from libs.azure.functions import FunctionApp, AuthLevel
 
-app = func.FunctionApp()
+app = FunctionApp(http_auth_level=AuthLevel.FUNCTION)
 
 # Initialize Endpoints
+load(__durable__, file_mode="all", depth=-1)
 load(__endpoints__, file_mode="all", depth=-1)
