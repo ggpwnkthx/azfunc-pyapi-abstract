@@ -23,10 +23,7 @@ def whoami():
         return authenticate()
 
 
-def authenticate(request: func.HttpRequest = None):
-    if not request and current.request:
-        request = current.request
-
+def authenticate(request: func.HttpRequest, enforce:bool = True):
     subject = None
     if request.headers.get("Authorization"):
         token = str(request.headers.get("Authorization")).removeprefix("Bearer ")
@@ -46,6 +43,7 @@ def authenticate(request: func.HttpRequest = None):
             )
         return subject
     else:
-        raise AuthenticationException(
-            code="Unidentifiable", message="Unable to identify the requesting entity."
-        )
+        if enforce:
+            raise AuthenticationException(
+                code="Unidentifiable", message="Unable to identify the requesting entity."
+            )

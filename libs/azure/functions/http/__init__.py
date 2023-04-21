@@ -1,20 +1,8 @@
-from ....utils.jsonapi import parse_request
-from azure.functions import HttpRequest, HttpResponse
+from azure.functions import HttpResponse
 from datetime import datetime
 from werkzeug.local import LocalProxy
 import simplejson as json
 import typing
-
-
-class HttpRequest(HttpRequest):
-    def get_jsonapi(self, prefix: str = "jsonapi/"):
-        return parse_request(
-            url=self.url,
-            method=self.method,
-            headers=self.headers,
-            body=self.get_body(),
-            prefix=prefix,
-        )
 
 
 class HttpResponse(HttpResponse):
