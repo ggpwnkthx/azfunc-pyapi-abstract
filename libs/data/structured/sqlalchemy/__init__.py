@@ -22,35 +22,9 @@ class SQLAlchemyStructuredProvider:
     @property
     def SCHEMA(self) -> dict:
         return {
-            name: {
-                "fields": {
-                    field.key: {
-                        "type": field.type.__visit_name__,
-                        "readOnly": getattr(
-                            field,
-                            "primary_key",
-                            getattr(
-                                field,
-                                "__read_only__",
-                                getattr(table, "__read_only__", False),
-                            ),
-                        ),
-                    }
-                    for field in inspect(table).columns
-                },
-                "relationships": {
-                    relationship.name: {
-                        "type": getattr(
-                            relationship.class_,
-                            "__name__",
-                            getattr(relationship.class_, "__collection_name__", None),
-                        ),
-                        "to": "many" if hasattr(relationship, "uselist") else "one",
-                    }
-                    for relationship in getattr(inspect(table), "relationships", [])
-                },
-            }
-            for name, table in self.base.metadata.tables.items()
+            f"{schema}.{table}": model.__marshmallow__
+            for schema, tables in self.models.items()
+            for table, model in tables.items()
         }
 
     def __init__(self, *args, **kwargs) -> None:

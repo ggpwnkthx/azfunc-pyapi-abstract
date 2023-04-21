@@ -5,19 +5,33 @@ import azure.functions as func
 import logging
 import simplejson as json
 
+
 @app.session()
 @app.authenticate(enforce=False)
 @app.jsonapi()
 @app.route("{binding}/jsonapi/v1")
 async def api_v1_jsonapi(req: func.HttpRequest) -> func.HttpResponse:
-    logging.warn(dir(req))
     provider = from_bind(req.route_params.get("binding"))
     if provider:
         match req.method:
             case "GET":
                 if req.jsonapi["type"] == "schema":
                     if isinstance(provider, StructuredProvider):
-                        return func.HttpResponse(json.dumps(provider.SCHEMA))
+                        logging.warn(
+                            {
+                                field: {
+                                    "type": definition.__class__.__name__,
+                                    "allow_none": definition.allow_none,
+                                    "read_only": definition.dump_only,
+                                    "write_only": definition.load_only,
+                                    "required": definition.required,
+                                }
+                                for field, definition in provider.SCHEMA[
+                                    "esquire.geoframes"
+                                ]().fields.items()
+                            }
+                        )
+                        return func.HttpResponse("OK")
 
                 # if (
                 #     "id" in current.jsonapi["request"]["resource"].keys()
