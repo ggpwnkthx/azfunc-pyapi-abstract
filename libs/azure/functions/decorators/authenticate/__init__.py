@@ -16,14 +16,14 @@ class AuthenticationException(Exception):
             self.message[key] = value
 
 
-def whoami():
+def whoami(**kwargs):
     try:
         return current.subject
     except:
-        return authenticate()
+        return parse_request(**kwargs)
 
 
-def authenticate(request: func.HttpRequest, enforce:bool = True):
+def parse_request(request: func.HttpRequest, enforce:bool = True):
     subject = None
     if request.headers.get("Authorization"):
         token = str(request.headers.get("Authorization")).removeprefix("Bearer ")
