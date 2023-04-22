@@ -10,6 +10,10 @@ class StructuredProvider(Protocol):
     @staticproperty
     def SUPPORTED_SCHEMES(self) -> list:
         pass
+    
+    @staticproperty
+    def RESOURCE_TYPE_DELIMITER(self) -> list:
+        pass
 
     @property
     def SCHEMA(self) -> dict:

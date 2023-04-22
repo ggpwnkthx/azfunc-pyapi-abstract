@@ -1,12 +1,13 @@
-from typing import List, Protocol, runtime_checkable
+from marshmallow import Schema
+from typing import Any, List, Protocol, Tuple, runtime_checkable
 
 
 @runtime_checkable
 class StorageProvider(Protocol):
-    def save(self, *args, **kwargs):
+    def save(self, *args, **kwargs) -> None:
         pass
 
-    def load(self, *args, **kwargs):
+    def load(self, *args, **kwargs) -> Any:
         pass
 
 

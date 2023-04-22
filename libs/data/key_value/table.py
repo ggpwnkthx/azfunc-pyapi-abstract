@@ -7,7 +7,7 @@ class TableKeyValueProvider:
         return ["azure_table"]
 
     @staticproperty
-    def SPLIT_CHAR(self) -> str:
+    def RESOURCE_TYPE_DELIMITER(self) -> str:
         return "."
 
     def __init__(self, *args, **kwargs) -> None:
@@ -51,7 +51,7 @@ class TableKeyValueProvider:
     def parse_key(self, key: str):
         match self.scheme:
             case "azure_table":
-                key = key.split(self.SPLIT_CHAR)
+                key = key.split(self.RESOURCE_TYPE_DELIMITER)
                 table_name = key[0]
                 partition_key = key[1]
                 row_key = ""

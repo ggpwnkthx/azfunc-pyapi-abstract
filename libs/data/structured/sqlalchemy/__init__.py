@@ -1,12 +1,11 @@
 from .utils import extend_model
 from libs.utils.decorators import staticproperty
 
-# from marshmallow_sqlalchemy import SQLAlchemyAutoSchema
+from marshmallow import Schema
 from sqlalchemy import create_engine, Engine
 from sqlalchemy.ext.automap import automap_base, AutomapBase
-from sqlalchemy.inspection import inspect
 from sqlalchemy.orm import Session
-from typing import Any, Callable, List
+from typing import Any, Callable, List, Tuple
 import uuid
 
 
@@ -16,13 +15,26 @@ class SQLAlchemyStructuredProvider:
         return ["sql"]
 
     @staticproperty
+    def RESOURCE_TYPE_DELIMITER(self) -> str:
+        return "."
+
+    @staticproperty
     def DEFAULT_SCHEMA(self) -> str:
         return "default"
 
     @property
     def SCHEMA(self) -> dict:
         return {
-            f"{schema}.{table}": model.__marshmallow__
+            f"{schema}.{table}": {
+                field.name: {
+                    "type": field.__class__.__name__,
+                    "read_only": field.dump_only,
+                    "write_only": field.load_only,
+                    "required": field.required,
+                    "allow_none": field.allow_none,
+                }
+                for field in model.__marshmallow__().fields.values()
+            }
             for schema, tables in self.models.items()
             for table, model in tables.items()
         }
@@ -63,7 +75,10 @@ class SQLAlchemyStructuredProvider:
                 extend_model(model=self.models[schema][model], session=self.session)
 
     def __getitem__(self, handle):
-        return self.models[handle]
+        selected = self.models
+        for selector in handle.split(self.RESOURCE_TYPE_DELIMITER):
+            selected = selected[selector]
+        return selected
 
     def connect(self) -> Session:
         return self.session()
@@ -71,38 +86,37 @@ class SQLAlchemyStructuredProvider:
     def save(
         self,
         key: str,
-        value: dict,
+        value: Any,
+        schema_name: str = None,
         table_name: str = None,
-        schema: str = None,
-        table=None,
+        model: Any = None,
     ) -> None:
         session = self.session()
-        if not table:
-            if not table_name and not schema:
-                table, key = self.parse_key(key)
-            if table_name and not schema:
-                table = self[schema][table_name]
-        record = session.query(table).get(key)
+        if not model:
+            if not table_name and not schema_name:
+                schema_name, table_name, primary_key = self.parse_key(key)
+            model = self.models[schema_name or self.DEFAULT_SCHEMA][table_name]
+        record = session.query(model).get(primary_key)
         if record:
             for k, v in value.items():
                 setattr(record, k, v)
         else:
-            session.add(table(**value))
+            session.add(model(**value))
         session.commit()
 
     def load(
-        self, key: str, table_name: str = None, schema: str = None, table=None
+        self,
+        key: str,
+        schema_name: str = None,
+        table_name: str = None,
+        model: Any = None,
     ) -> Any:
         session = self.session()
-        try:
-            if not table:
-                if not table_name and not schema:
-                    table, key = self.parse_key(key)
-                if table_name and not schema:
-                    table = self[schema][table_name]
-            return session.query(table).get(key)
-        except:
-            return None
+        if not model:
+            if not table_name and not schema_name:
+                schema_name, table_name, primary_key = self.parse_key(key)
+            model = self.models[schema_name or self.DEFAULT_SCHEMA][table_name]
+        return session.query(model).get(primary_key)
 
     def filter(
         self, filters: List[str], decoder: Callable = None, **kwargs
@@ -110,22 +124,28 @@ class SQLAlchemyStructuredProvider:
         pass
 
     def drop(
-        self, key: str, table_name: str = None, schema: str = None, table=None
+        self,
+        key: str,
+        schema_name: str = None,
+        table_name: str = None,
+        model: Any = None,
     ) -> None:
         session = self.session()
-        if not table:
-            if not table_name and not schema:
-                table, key = self.parse_key(key)
-            if table_name and not schema:
-                table = self[self.DEFAULT_SCHEMA][table_name]
-        session.delete(session.query(table).get(key))
+        if not model:
+            if not table_name and not schema_name:
+                schema_name, table_name, primary_key = self.parse_key(key)
+            model = self.models[schema_name or self.DEFAULT_SCHEMA][table_name]
+        session.delete(session.query(model).get(primary_key))
         session.commit()
 
-    def parse_key(self, key: str) -> Any:
-        key = key.split(".")
-        schema, table_name = key[0:2]
-        key = ".".join(key[2:])
-        return self[schema][table_name], key
+    def parse_key(self, key: str):
+        key = key.split(self.RESOURCE_TYPE_DELIMITER)
+        schema_name = key[0]
+        table_name = key[1]
+        primary_key = ""
+        if len(key) > 2:
+            primary_key = key[2]
+        return schema_name, table_name, primary_key
 
     def modulename_for_table(self, cls, tablename, table) -> str:
         return (
