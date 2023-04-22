@@ -1,17 +1,24 @@
 from .authenticate import parse_request as parse_request_identity
-from .jsonapi.parser import parse_request as parse_request_jsonapi
-from .session import parse_request as parse_request_session, alter_response as alter_response_session
+from .jsonapi import (
+    parse_request as parse_request_jsonapi,
+    alter_response as alter_response_jsonapi,
+)
+from .session import (
+    parse_request as parse_request_session,
+    alter_response as alter_response_session,
+)
 from asyncio import iscoroutinefunction
 from azure.durable_functions import DFApp
 from azure.functions import AuthLevel
-from azure.functions._http import HttpResponse
-from azure.functions.decorators import FunctionApp as FApp, FunctionRegister
+from azure.functions.decorators import FunctionApp as FApp
 from azure.functions.decorators.core import BindingDirection
 from azure.functions.decorators.constants import HTTP_TRIGGER, HTTP_OUTPUT
 from azure.functions.decorators.function_app import DecoratorApi
+from libs.azure.functions.http import HttpResponse
 from functools import wraps
 from typing import Any, Callable, Optional, Union
 import os
+
 
 class HttpDecoratorApi(DecoratorApi):
     @staticmethod
@@ -87,16 +94,18 @@ class HttpDecoratorApi(DecoratorApi):
                 async def middleware(*args, **kwargs):
                     func_kwargs["request"] = kwargs[self.get_request_binding(wrap).name]
                     if binding.name == "$return":
-                        results: HttpResponse = await user_code(*args, **kwargs)
+                        response: HttpResponse = await user_code(*args, **kwargs)
                         if property_name:
                             setattr(
-                                results,
+                                response,
                                 property_name,
-                                value or func(results, **func_kwargs),
+                                value or func(response, **func_kwargs),
                             )
                         else:
-                            results: HttpResponse = value or func(results, **func_kwargs)
-                        return results
+                            response: HttpResponse = value or func(
+                                response, **func_kwargs
+                            )
+                        return response
 
             else:
 
@@ -138,6 +147,7 @@ class HttpDecoratorApi(DecoratorApi):
         @self._configure_function_builder
         def wrap(fb):
             def decorator():
+                # Append the JSONAPI route parameters
                 self.get_request_binding(
                     fb
                 ).route += (
@@ -146,6 +156,7 @@ class HttpDecoratorApi(DecoratorApi):
                 self._enhance_http_request(
                     wrap=fb, property_name="jsonapi", func=parse_request_jsonapi
                 )
+                self._enhance_http_response(wrap=fb, func=alter_response_jsonapi)
                 return fb
 
             return decorator()

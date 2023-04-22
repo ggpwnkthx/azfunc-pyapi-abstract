@@ -1,5 +1,5 @@
 from .exceptions import *
-from azure.functions.http import HttpRequest
+from libs.azure.functions.http import HttpRequest, HttpResponse
 from querystring_parser import parser
 import simplejson as json
 
@@ -71,19 +71,38 @@ def parse_request(request: HttpRequest):
                 "type": request.route_params.get("resource_type"),
                 "id": request.route_params.get("resource_id"),
                 "relation": request.route_params.get("relation_id"),
-                "action": parse_query(request.url)
+                "action": parse_query(request.url),
             }
         else:
             return {
                 "type": request.route_params.get("resource_id"),
                 "id": request.route_params.get("relation_id"),
                 "relation": None,
-                "action": parse_query(request.url)
+                "action": parse_query(request.url),
             }
     else:
         return {
             "type": request.route_params.get("resource_type"),
             "id": request.route_params.get("resource_id"),
             "relation": request.route_params.get("relation_type"),
-            "action": parse_query(request.url)
+            "action": parse_query(request.url),
         }
+
+from libs.utils.jsonapi.marshmallow import Responder
+def alter_response(response: HttpResponse, request: HttpRequest, **kwargs):
+    response.headers.add("Content-Type", "application/vnd.api+json")
+    if isinstance(response.resource, tuple):
+        for resource in response.resource:
+            # responder = type(
+            #     f"{resource.__name__}Responder", 
+            #     (Responder,), 
+            #     {
+            #         "TYPE": resource.__name__,
+            #         "SERIALIZER": resource.__marshmallow__
+            #     }
+            # )
+            if hasattr(resource, "__repr__"):
+                response.set_body(str(resource))
+            else:
+                response.set_body(json.dumps(resource))
+    return response
