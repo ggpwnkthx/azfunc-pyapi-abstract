@@ -4,14 +4,16 @@ azure-functions-durable
 azure-storage-blob
 base58
 frozendict
+GeoAlchemy2
 geojson
 inflect
 itsdangerous
 marshmallow
+marshmallow-geojson
 marshmallow-jsonapi
 marshmallow-sqlalchemy
 msal
-pandas
+pandas>=2.0.0
 py-abac
 pyjwt
 pymssql
@@ -25,3 +27,6 @@ smart-open
 sqlalchemy
 traitlets>=5.5.0
 werkzeug
+
+# optional
+sql-formatter
