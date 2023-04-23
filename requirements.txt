@@ -4,7 +4,7 @@ azure-functions-durable
 azure-storage-blob
 base58
 frozendict
-GeoAlchemy2
+geoalchemy2 @ git+https://github.com/geoalchemy/geoalchemy2
 geojson
 inflect
 itsdangerous

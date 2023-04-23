@@ -16,10 +16,11 @@ from shapely.ops import transform as shapely_transform
 from typing import Union
 import numpy as np
 import geojson
+import shapely.wkb
 import shapely.wkt
 
 GeoJsonType: type = Union[geojson.Feature, geojson.FeatureCollection]
-WktType: type = Union[
+WkbType: type = Union[
     GeometryCollection,
     Point,
     MultiPoint,
@@ -28,6 +29,19 @@ WktType: type = Union[
     Polygon,
     MultiPolygon,
 ]
+WktType: type = WkbType
+
+
+def wkb2geojson(wkb: bytes) -> GeoJsonType:
+    wkb = shapely.wkb.loads(wkb)
+    wkb = validate_wkb(wkb)
+    if type(wkb) == GeometryCollection:
+        features = [geojson.Feature(geometry=o, properties={}) for o in wkb.geoms]
+        feature_collection = geojson.FeatureCollection(features)
+        return feature_collection
+    else:
+        feature = geojson.Feature(geometry=wkb, properties={})
+        return feature
 
 
 def wkt2geojson(wkt: str) -> GeoJsonType:
@@ -61,6 +75,10 @@ def geojson2shape(
         raise Exception
 
 
+def geojson2wkb(data: Union[GeoJsonType, dict]) -> WktType:
+    return geojson2shape(validate_geojson(data)).wkb
+
+
 def geojson2wkt(data: Union[GeoJsonType, dict]) -> WktType:
     return geojson2shape(validate_geojson(data)).wkt
 
@@ -70,6 +88,12 @@ def validate_geojson(data: Union[GeoJsonType, dict]) -> GeoJsonType:
     if not data.is_valid:
         return None
 
+    return data
+
+
+def validate_wkb(data: WkbType) -> WkbType:
+    if not data.is_valid:
+        return None
     return data
 
 

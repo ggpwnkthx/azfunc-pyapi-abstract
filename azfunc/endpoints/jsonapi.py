@@ -4,6 +4,10 @@ from libs.data import from_bind
 from libs.data.structured import StructuredProvider
 
 import logging
+
+
+
+
 # @app.session()
 # @app.authenticate(enforce=False)
 @app.jsonapi()
@@ -18,10 +22,6 @@ async def api_v1_jsonapi(req: HttpRequest) -> HttpResponse:
                 elif not req.jsonapi.get("id"):
                     pass
                 elif not req.jsonapi.get("relation"):
-                    qf = provider[req.jsonapi["type"]]
-                    logging.warn(qf)
-                    column = qf["notes"]
-                    logging.warn(column)
-                    # logging.warn(qf[column != None])
-                return HttpResponse(resource={})
+                    resources = [provider[req.jsonapi["type"]](req.jsonapi["id"])]
+                return HttpResponse(resources=resources)
     return HttpResponse(status_code=404)

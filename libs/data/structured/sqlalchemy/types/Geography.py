@@ -53,19 +53,33 @@
 #             f = text(exp)
 #             return f
 
-from geoalchemy2.types import Geometry, Geography
+from geoalchemy2.types import Geometry as Gm, Geography as Gg
+from libs.utils.geometry import wkb2geojson, geojson2wkb
 from sqlalchemy.dialects.mssql.base import ischema_names as mssql_ischema_names
 
-mssql_ischema_names["geometry"] = Geometry
+class Geography(Gg):
+    def result_processor(self, dialect, coltype):
+        def process(value):
+            return wkb2geojson(value) if value else value
+
+        return process
+
+    def bind_processor(self, dialect):
+        def process(value):
+            return geojson2wkb(value) if value else value
+
+        return process
+
+# mssql_ischema_names["geometry"] = Geometry
 mssql_ischema_names["geography"] = Geography
 
 from marshmallow.fields import Nested
-from marshmallow_geojson import GeometriesSchema
+from marshmallow_geojson import GeometriesSchema, GeoJSONSchema
 from marshmallow_sqlalchemy.convert import ModelConverter
 
 class Geometry(Nested):
     def __init__(self, **kwargs):
-        super().__init__(GeometriesSchema, **kwargs)
+        super().__init__(GeoJSONSchema, **kwargs)
 
 ModelConverter.SQLA_TYPE_MAPPING[Geometry] = Geometry
 ModelConverter.SQLA_TYPE_MAPPING[Geography] = Geometry

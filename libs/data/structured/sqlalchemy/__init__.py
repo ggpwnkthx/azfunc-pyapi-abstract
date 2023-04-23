@@ -1,11 +1,11 @@
+from .interface import QueryFrame
 from .utils import extend_model
 from libs.utils.decorators import staticproperty
 
-from marshmallow import Schema
 from sqlalchemy import create_engine, Engine
 from sqlalchemy.ext.automap import automap_base, AutomapBase
 from sqlalchemy.orm import Session
-from typing import Any, Callable, List, Tuple
+from typing import Any, Callable, List
 import uuid
 
 
@@ -78,7 +78,7 @@ class SQLAlchemyStructuredProvider:
         selected = self.models
         for selector in handle.split(self.RESOURCE_TYPE_DELIMITER):
             selected = selected[selector]
-        return selected
+        return QueryFrame(selected, self.session)
 
     def connect(self) -> Session:
         return self.session()
