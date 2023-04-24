@@ -1,5 +1,4 @@
-from marshmallow import Schema
-from typing import Any
+from typing import Any, List
 import azure.functions as func
 
 class HttpRequest(func.HttpRequest):
@@ -11,7 +10,7 @@ class HttpRequest(func.HttpRequest):
         
 class HttpResponse(func.HttpResponse):
     def __init__(self, *args, **kwargs) -> None:
-        self.resource: Any = kwargs.pop("resource", None),
+        self.resources: List[Any] = kwargs.pop("resources", None),
         super().__init__(*args, **kwargs)
         
     def set_body(self, *args, **kwargs):

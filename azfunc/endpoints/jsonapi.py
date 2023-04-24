@@ -20,7 +20,7 @@ async def api_v1_jsonapi(req: HttpRequest) -> HttpResponse:
                 if req.jsonapi["type"] == "schema":
                     return HttpResponse(resource=provider.SCHEMA)
                 elif not req.jsonapi.get("id"):
-                    pass
+                    resources = provider[req.jsonapi["type"]]()
                 elif not req.jsonapi.get("relation"):
                     resources = [provider[req.jsonapi["type"]](req.jsonapi["id"])]
                 return HttpResponse(resources=resources)
