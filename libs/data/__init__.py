@@ -1,5 +1,4 @@
-from marshmallow import Schema
-from typing import Any, List, Protocol, Tuple, runtime_checkable
+from typing import Any, List, Protocol, runtime_checkable
 
 
 @runtime_checkable
