@@ -1,6 +1,7 @@
 from libs.utils.decorators import staticproperty
 from typing import Any, Callable, List
 
+
 class TableKeyValueProvider:
     @staticproperty
     def SUPPORTED_SCHEMES(self) -> List[str]:
@@ -17,10 +18,27 @@ class TableKeyValueProvider:
             self.scheme = kwargs.pop("scheme")
         self.config = {**kwargs}
 
+    def __getitem__(self, handle: str) -> Any:
+        match self.scheme:
+            case "azure_table":
+                handle = handle.split(self.RESOURCE_TYPE_DELIMITER)
+                conn = self.connect(
+                    table_name=handle[0],
+                    partition_key=handle[1] if len(handle) > 1 else None,
+                    key_split_char=self.RESOURCE_TYPE_DELIMITER
+                )
+                return conn
+
     def connect(self, table_name: str, **kwargs) -> Any:
         match self.scheme:
             case "azure_table":
-                return self.config["client"].get_table_client(table_name)
+                from .azure_table import Client as AzureTableClient
+
+                return AzureTableClient.from_service_client(
+                    service_client=self.config["client"],
+                    table_name=table_name,
+                    **kwargs,
+                )
 
     def save(self, key: str, value: Any, encoder: Callable = None, **kwargs) -> None:
         if encoder:
@@ -31,7 +49,9 @@ class TableKeyValueProvider:
                 conn = self.connect(table_name)
                 if not hasattr(value, "keys"):
                     value = {"value": value}
-                conn.upsert_entity({"PartitionKey": partition_key, "RowKey": row_key, **value})
+                conn.upsert_entity(
+                    {"PartitionKey": partition_key, "RowKey": row_key, **value}
+                )
 
     def load(self, key: str, decoder: Callable = None, **kwargs) -> Any:
         match self.scheme:

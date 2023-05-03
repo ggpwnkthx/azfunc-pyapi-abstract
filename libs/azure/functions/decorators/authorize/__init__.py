@@ -14,11 +14,7 @@ class AuthorizationException(Exception):
 class Authorization:
     def __init__(self):
         self.storage = AzureTableStorage(
-            table_name=str(
-                os.environ.get("flask_abac_table")
-                if os.environ.get("flask_abac_table")
-                else "pyabac"
-            ),
+            table_name=os.environ.get("flask_abac_table") or "pyabac",
             conn_str=os.environ["AzureWebJobsStorage"],
         )
 

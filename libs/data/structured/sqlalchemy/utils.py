@@ -1,70 +1,20 @@
-from typing import Any, Callable, Union
-import re
-import inflect
-
-
-def camelize_classname(base, tablename, table):
-    "Produce a 'camelized' class name, e.g."
-    "'words_and_underscores' -> 'WordsAndUnderscores'"
-    schema = table.schema.replace(" ", "_")
-    schema = str(
-        schema[0].upper()
-        + re.sub(r"_([a-z])", lambda m: m.group(1).upper(), schema[1:])
-    )
-    tablename = tablename.replace(" ", "_")
-    tablename = str(
-        tablename[0].upper()
-        + re.sub(r"_([a-z])", lambda m: m.group(1).upper(), tablename[1:])
-    )
-    return schema + tablename
-
-
-_pluralizer = inflect.engine()
-
-
-def pluralize_collection(base, local_cls, referred_cls, constraint):
-    "Produce an 'uncamelized', 'pluralized' class name, e.g."
-    "'SomeTerm' -> 'some_terms'"
-
-    referred_name = referred_cls.__name__
-    uncamelized = re.sub(r"[A-Z]", lambda m: "_%s" % m.group(0).lower(), referred_name)[
-        1:
-    ]
-    pluralized = _pluralizer.plural(uncamelized)
-    return pluralized
-
-
-from marshmallow_sqlalchemy import SQLAlchemyAutoSchema
 from sqlalchemy.orm import Session, Query
-import simplejson
+from sqlalchemy.schema import ForeignKeyConstraint
+from typing import Any, Callable, List, Union, Type
+
+EXTENSION_STEPS: List[Callable] = [
+    lambda model, session: setattr(model, "__class_getitem__", model_get(session)),
+    lambda model, _: setattr(
+        model, "__getitem__", lambda self, key: getattr(self, key)
+    ),
+    lambda model, _: setattr(model, "__setitem__", model_set_column),
+]
 
 
-def extend_model(model: Any, session: Session) -> None:
-    setattr(model, "__class_getitem__", model_get(session))
-    setattr(model, "__getitem__", lambda self, key: getattr(self, key))
-    setattr(model, "__setitem__", model_set_column)
-    setattr(
-        model,
-        "__marshmallow__",
-        type(
-            f"{model.__name__}Schema",
-            (SQLAlchemyAutoSchema,),
-            {
-                "Meta": type(
-                    "Meta",
-                    (object,),
-                    {
-                        "model": model,
-                        "sqla_session": session,
-                        "render_module": simplejson,
-                        # "include_relationships": True,
-                        # "load_instance": True,
-                    },
-                )
-            },
-        ),
-    )
-    setattr(model, "__repr__", lambda self: self.__marshmallow__().dumps(self))
+def extend_models(models: List[Any], session: Session) -> None:
+    for func in EXTENSION_STEPS:
+        for model in models:
+            func(model, session)
 
 
 def model_set_column(self: object, key: str, value: Any) -> None:
@@ -82,3 +32,19 @@ def model_get(session: Session) -> Callable:
         return frame[key]
 
     return __class_getitem__
+
+import logging
+
+def name_for_collection_relationship(
+    base: Type[Any],
+    local_cls: Type[Any],
+    referred_cls: Type[Any],
+    constraint: ForeignKeyConstraint,
+):
+    # if len(constraint.column_keys) == 1:
+    #     if constraint.column_keys[0][-3:] == "_id":
+    #         return f'related_{constraint.column_keys[0][:-3].lower()}'
+    if constraint.comment:
+        return f'{constraint.comment.lower()}'
+    if constraint.name:
+        return f'{constraint.name.lower()}'

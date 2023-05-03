@@ -15,6 +15,9 @@ class MemoryKeyValueProvider():
         
     def __init__(self, *args, **kwargs) -> None:
         self.store = {}
+    
+    def __getitem__(self, handle:str) -> Any:
+        return self.load(key=handle)
 
     def save(self, key: str, value: Any, encoder: Callable = None, **kwargs) -> None:
         self.store[key] = encoder(value, **kwargs) if encoder else value

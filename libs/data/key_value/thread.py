@@ -16,6 +16,9 @@ class ThreadKeyValueProvider:
         if not hasattr(cls, "instance"):
             cls.instance = super(ThreadKeyValueProvider, cls).__new__(cls)
             return cls.instance
+    
+    def __getitem__(self, handle: str) -> Any:
+        return self.load(key=handle)
 
     def save(self, key: str, value: Any, encoder: Callable = None, **kwargs) -> None:
         current.__setattr__(key, encoder(value) if encoder else value)

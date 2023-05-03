@@ -1,5 +1,8 @@
 from six import iteritems
-import simplejson as json
+try:
+    import simplejson as json
+except:
+    import json
 
 
 class BaseResponder(object):

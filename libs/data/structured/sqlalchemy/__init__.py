@@ -1,5 +1,6 @@
 from .interface import QueryFrame
-from .utils import extend_model
+from .marshmallow import extend_models as extend_models_marshmallow, schema
+from .utils import extend_models as extend_models_base, name_for_collection_relationship
 from libs.utils.decorators import staticproperty
 
 from sqlalchemy import create_engine, Engine
@@ -7,6 +8,11 @@ from sqlalchemy.ext.automap import automap_base, AutomapBase
 from sqlalchemy.orm import Session
 from typing import Any, Callable, List
 import uuid
+
+MODEL_EXTENSION_STEPS: List[Callable] = [
+    extend_models_base,
+    extend_models_marshmallow,
+]
 
 
 class SQLAlchemyStructuredProvider:
@@ -22,22 +28,10 @@ class SQLAlchemyStructuredProvider:
     def DEFAULT_SCHEMA(self) -> str:
         return "default"
 
-    @property
-    def SCHEMA(self) -> dict:
-        return {
-            f"{schema}.{table}": {
-                field.name: {
-                    "type": field.__class__.__name__,
-                    "read_only": field.dump_only,
-                    "write_only": field.load_only,
-                    "required": field.required,
-                    "allow_none": field.allow_none,
-                }
-                for field in model.__marshmallow__().fields.values()
-            }
-            for schema, tables in self.models.items()
-            for table, model in tables.items()
-        }
+    def get_schema(self, type_: str = "marshmallow") -> dict:
+        match type_:
+            case "marshmallow":
+                return schema.marshmallow_schema_to_dict(self)
 
     def __init__(self, *args, **kwargs) -> None:
         kw = kwargs.keys()
@@ -68,11 +62,19 @@ class SQLAlchemyStructuredProvider:
                 autoload_with=self.engine,
                 schema=schema,
                 modulename_for_table=self.modulename_for_table,
+                name_for_collection_relationship=name_for_collection_relationship,
             )
         self.models = self.base.by_module.get(self.id)
-        for schema in self.models.keys():
-            for model in self.models[schema].keys():
-                extend_model(model=self.models[schema][model], session=self.session)
+
+        for func in MODEL_EXTENSION_STEPS:
+            func(
+                models=[
+                    self.models[schema][model]
+                    for schema in self.models.keys()
+                    for model in self.models[schema].keys()
+                ],
+                session=self.session,
+            )
 
     def __getitem__(self, handle):
         selected = self.models

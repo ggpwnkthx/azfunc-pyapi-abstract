@@ -1,4 +1,3 @@
-from .authenticate import parse_request as parse_request_identity
 from .jsonapi import (
     parse_request as parse_request_jsonapi,
     alter_response as alter_response_jsonapi,
@@ -126,22 +125,6 @@ class HttpDecoratorApi(DecoratorApi):
 
             enchanced_user_code = middleware
             wrap._function._func = enchanced_user_code
-
-    def authenticate(self, enforce: bool = True) -> Callable:
-        @self._configure_function_builder
-        def wrap(fb):
-            def decorator():
-                self._enhance_http_request(
-                    wrap=fb,
-                    property_name="identity",
-                    func=parse_request_identity,
-                    enforce=enforce,
-                )
-                return fb
-
-            return decorator()
-
-        return wrap
 
     def jsonapi(self) -> Callable:
         @self._configure_function_builder

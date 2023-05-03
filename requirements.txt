@@ -1,32 +1,34 @@
+# azure
 azure-data-tables
 azure-functions
 azure-functions-durable
 azure-storage-blob
-base58
+
+# required
 frozendict
-geoalchemy2 @ git+https://github.com/geoalchemy/geoalchemy2
-geojson
-inflect
 itsdangerous
 marshmallow
-marshmallow-geojson
 marshmallow-jsonapi
 marshmallow-sqlalchemy
-msal
 pandas>=2.0.0
 py-abac
-pyjwt
+# pyjwt
 pymssql
-pyproj
-python-magic
-python-magic-bin
+# python-magic
+# python-magic-bin
 querystring-parser
-shapely
-simplejson
 smart-open
 sqlalchemy
-traitlets>=5.5.0
+# traitlets>=5.5.0
 werkzeug
 
 # optional
+## formatting
+simplejson
 sql-formatter
+## geometry/geography
+geoalchemy2 @ git+https://github.com/Esquire-Media/geoalchemy2
+geojson
+marshmallow-geojson
+pyproj
+shapely

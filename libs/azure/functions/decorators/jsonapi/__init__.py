@@ -1,8 +1,10 @@
 from .exceptions import *
 from libs.azure.functions.http import HttpRequest, HttpResponse
 from querystring_parser import parser
-import simplejson as json
-
+try:
+    import simplejson as json
+except:
+    import json
 
 JSONAPI_VERSION = "1.1"
 
@@ -88,26 +90,19 @@ def parse_request(request: HttpRequest):
             "action": parse_query(request.url),
         }
 
-import logging
-from libs.utils.jsonapi.marshmallow import Responder
+
+from libs.data.structured import StructuredQueryFrame
+
+
 def alter_response(response: HttpResponse, request: HttpRequest, **kwargs):
     response.headers.add("Content-Type", "application/vnd.api+json")
-    if isinstance(response.resources, tuple):
-        for resources in response.resources:
-            if isinstance(resources, list):
-                # responder = type(
-                #     f"{resource.__name__}Responder", 
-                #     (Responder,), 
-                #     {
-                #         "TYPE": resource.__name__,
-                #         "SERIALIZER": resource.__marshmallow__
-                #     }
-                # )
-                if len(resources) == 1:
-                    logging.warn(type(resources[0]))
-                    response.set_body(str(resources[0]))
-                else:
-                    for resource in resources:
-                        logging.warn(type(resource))
-                    response.set_body(json.dumps(resources))
+    for resources in response.resources:
+        if isinstance(resources, StructuredQueryFrame):
+            response.set_body("[" + ",".join([str(row) for row in resources()]) + "]")
+        else:
+            try:
+                response.set_body(json.dumps(resources))
+            except:
+                response.set_body(str(resources))
+        break
     return response

@@ -3,7 +3,6 @@
 """
 
 import logging
-import simplejson as json
 from azure.data.tables import TableServiceClient
 from azure.core.credentials import (
     AzureKeyCredential,
@@ -15,6 +14,10 @@ from py_abac.storage.memory import MemoryStorage
 from py_abac.exceptions import PolicyExistsError
 from py_abac.policy import Policy
 from typing import Union, Generator
+try:
+    import simplejson as json
+except:
+    import json
 
 LOG = logging.getLogger(__name__)
 

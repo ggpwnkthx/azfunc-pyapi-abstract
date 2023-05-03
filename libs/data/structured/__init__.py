@@ -10,13 +10,12 @@ class StructuredProvider(Protocol):
     @staticproperty
     def SUPPORTED_SCHEMES(self) -> list:
         pass
-    
+
     @staticproperty
     def RESOURCE_TYPE_DELIMITER(self) -> list:
         pass
 
-    @property
-    def SCHEMA(self) -> dict:
+    def get_schema(self, type_:str) -> dict:
         """Returns a dictionary representing the structure's schema."""
         pass
 
@@ -30,6 +29,21 @@ class StructuredProvider(Protocol):
 
     def drop(self, key: str, **kwargs) -> None:
         """"""
+        pass
+
+
+@runtime_checkable
+class StructuredQueryFrame(Protocol):
+    def __getitem__(self):
+        pass
+
+    def __call__(self, key: str = None):
+        pass
+
+    def __len__(self) -> int:
+        pass
+
+    def to_pandas(self):
         pass
 
 
@@ -61,10 +75,10 @@ class StructuredRegistry:
             if cls.regex_schemes(scheme):
                 provider_class = provider
                 break
-        if not provider_class:
-            raise ValueError(
-                f"Storage provider for the '{scheme}' scheme is not supported."
-            )
+        # if not provider_class:
+        #     raise ValueError(
+        #         f"Storage provider for the '{scheme}' scheme is not supported."
+        #     )
         return provider_class(scheme=scheme, *args, **kwargs)
 
     @classmethod
