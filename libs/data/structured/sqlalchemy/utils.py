@@ -33,7 +33,9 @@ def model_get(session: Session) -> Callable:
 
     return __class_getitem__
 
+
 import logging
+
 
 def name_for_collection_relationship(
     base: Type[Any],
@@ -41,10 +43,7 @@ def name_for_collection_relationship(
     referred_cls: Type[Any],
     constraint: ForeignKeyConstraint,
 ):
-    # if len(constraint.column_keys) == 1:
-    #     if constraint.column_keys[0][-3:] == "_id":
-    #         return f'related_{constraint.column_keys[0][:-3].lower()}'
     if constraint.comment:
-        return f'{constraint.comment.lower()}'
+        return f"{constraint.comment.lower()}"
     if constraint.name:
-        return f'{constraint.name.lower()}'
+        return f"{constraint.name.lower()}"

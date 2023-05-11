@@ -1,8 +1,7 @@
 try:
     from marshmallow.fields import Nested
-    from marshmallow_geojson import GeometryCollectionSchema, GeoJSONSchema
+    from marshmallow_geojson import GeoJSONSchema
     from marshmallow_sqlalchemy.convert import ModelConverter
-    from shapely.geometry import GeometryCollection
     from sqlalchemy.dialects.mssql.base import ischema_names as mssql_ischema_names
     import geoalchemy2.types
 
