@@ -1,4 +1,5 @@
-from libs.azure.functions import HttpRequest, Blueprint
+from libs.azure.functions import Blueprint
+from libs.azure.functions.http import HttpRequest
 
 bp = Blueprint()
 

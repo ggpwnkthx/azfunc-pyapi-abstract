@@ -1,12 +1,10 @@
 from .http import HttpDecoratorApi
 from azure.durable_functions import BluePrint as DFBP
-from azure.functions import FunctionRegister
+from azure.functions import AuthLevel, FunctionRegister
 from typing import List
 import importlib.util
 import inspect
 import os
-
-from libs.utils.logger import WARNING
 
 
 class Blueprint(DFBP, HttpDecoratorApi):
@@ -14,6 +12,13 @@ class Blueprint(DFBP, HttpDecoratorApi):
 
 
 class FunctionApp(Blueprint, FunctionRegister):
+    def __init__(self, http_auth_level: AuthLevel | str = AuthLevel.FUNCTION):
+        super().__init__(http_auth_level)
+        if os.path.exists("config.py"):
+            spec = importlib.util.spec_from_file_location("config", "config.py")
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+
     def register_blueprints(self, paths: List[str]):
         for p in paths:
             for bp in FunctionApp.find_blueprints(p):
@@ -40,7 +45,6 @@ class FunctionApp(Blueprint, FunctionRegister):
         def process_file(file_path):
             # Check if the file exists
             if not os.path.exists(file_path):
-                WARNING(f"File does not exist: {file_path}")
                 return
 
             # Load the module

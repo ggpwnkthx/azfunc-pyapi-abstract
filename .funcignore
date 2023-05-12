@@ -8,3 +8,4 @@ local.settings.json
 test
 .venv
 logs
+*.ipynb

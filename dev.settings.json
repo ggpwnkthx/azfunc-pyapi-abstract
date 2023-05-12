@@ -7,8 +7,8 @@
     "TASK_HUB_NAME": "development",
 
     "SESSION_SECRET": "ThisIsTheSecretKey",
-    "SESSION_MAX_AGE": 3600,
+    "SESSION_MAX_AGE": "3600",
 
-    "DEFAULT_JSONAPI_PAGE_SIZE": 1000
+    "DEFAULT_JSONAPI_PAGE_SIZE": "1000"
   }
 }
