@@ -1,10 +1,13 @@
-from .. import app
+from libs.azure.functions import Blueprint
 from libs.azure.functions.http import HttpRequest, HttpResponse
 from libs.data import from_bind
 
+bp = Blueprint()
+
+
 # @app.session()
-@app.jsonapi()
-@app.route("{binding}/jsonapi/v1")
+@bp.jsonapi()
+@bp.route("{binding}/jsonapi/v1")
 async def api_v1_jsonapi(req: HttpRequest) -> HttpResponse:
     provider = from_bind(req.route_params.get("binding"))
     match req.method:

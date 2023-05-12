@@ -1,181 +1,75 @@
-from .jsonapi import (
-    parse_request as parse_request_jsonapi,
-    alter_response as alter_response_jsonapi,
-)
-from .session import (
-    parse_request as parse_request_session,
-    alter_response as alter_response_session,
-)
-from asyncio import iscoroutinefunction
-from azure.durable_functions import DFApp
-from azure.functions import AuthLevel
-from azure.functions.decorators import FunctionApp as FApp
-from azure.functions.decorators.core import BindingDirection
-from azure.functions.decorators.constants import HTTP_TRIGGER, HTTP_OUTPUT
-from azure.functions.decorators.function_app import DecoratorApi
-from libs.azure.functions.http import HttpResponse
-from functools import wraps
-from typing import Any, Callable, Optional, Union
+from .http import HttpDecoratorApi
+from azure.durable_functions import BluePrint as DFBP
+from azure.functions import FunctionRegister
+from typing import List
+import importlib.util
+import inspect
 import os
 
+from libs.utils.logger import WARNING
 
-class HttpDecoratorApi(DecoratorApi):
+
+class Blueprint(DFBP, HttpDecoratorApi):
+    pass
+
+
+class FunctionApp(Blueprint, FunctionRegister):
+    def register_blueprints(self, paths: List[str]):
+        for p in paths:
+            for bp in FunctionApp.find_blueprints(p):
+                self.register_blueprint(bp)
+
     @staticmethod
-    def get_request_binding(wrap):
-        for binding in wrap._function.get_bindings():
-            if (
-                binding._direction == BindingDirection.IN
-                and binding.type == HTTP_TRIGGER
-            ):
-                return binding
-        return None
+    def find_blueprints(path):
+        blueprints = []
+        recursive = False
+        single_file = False
 
-    @staticmethod
-    def get_response_binding(wrap):
-        for binding in wrap._function.get_bindings():
-            if (
-                binding._direction == BindingDirection.OUT
-                and binding.type == HTTP_OUTPUT
-            ):
-                return binding
-        return None
+        # Check if path ends with /*
+        if path.endswith("/*"):
+            path = path[:-2]  # Remove /* from the end
+            recursive = True
+        elif path.endswith("/"):
+            path = path[:-1]  # Remove / from the end
+        else:
+            single_file = (
+                True  # If it doesn't end with / or /*, assume it's a single file
+            )
 
-    def _enhance_http_request(
-        self,
-        wrap: Callable,
-        property_name: str,
-        value: Any = None,
-        func: Callable = None,
-        **func_kwargs,
-    ) -> None:
-        if binding := self.get_request_binding(wrap):
-            user_code = wrap._function._func
+        # Function to process a single file
+        def process_file(file_path):
+            # Check if the file exists
+            if not os.path.exists(file_path):
+                WARNING(f"File does not exist: {file_path}")
+                return
 
-            if iscoroutinefunction(user_code):
+            # Load the module
+            spec = importlib.util.spec_from_file_location(
+                os.path.basename(file_path)[:-3], file_path
+            )
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
 
-                @wraps(user_code)
-                async def middleware(*args, **kwargs):
-                    setattr(
-                        kwargs[binding.name],
-                        property_name,
-                        value or func(kwargs[binding.name], **func_kwargs),
-                    )
-                    return await user_code(*args, **kwargs)
+            # Scan the module for Blueprint instances
+            for name, obj in inspect.getmembers(module):
+                if isinstance(obj, Blueprint):
+                    blueprints.append(obj)
 
-            else:
+        # If it's a single file, just process it
+        if single_file:
+            if not path.endswith(".py"):
+                path += ".py"
+            process_file(path)
+        else:
+            # Scan the path for .py files
+            for root, dirs, files in os.walk(path):
+                for file in files:
+                    if file.endswith(".py"):
+                        file_path = os.path.join(root, file)
+                        process_file(file_path)
 
-                @wraps(user_code)
-                def middleware(*args, **kwargs):
-                    setattr(
-                        kwargs[binding.name],
-                        property_name,
-                        value or func(kwargs[binding.name], **func_kwargs),
-                    )
-                    return user_code(*args, **kwargs)
+                # If not recursive, break after the first path
+                if not recursive:
+                    break
 
-            enchanced_user_code = middleware
-            wrap._function._func = enchanced_user_code
-
-    def _enhance_http_response(
-        self,
-        wrap: Callable,
-        property_name: str = None,
-        value: Any = None,
-        func: Callable = None,
-        **func_kwargs,
-    ):
-        if binding := self.get_response_binding(wrap):
-            user_code = wrap._function._func
-
-            if iscoroutinefunction(user_code):
-
-                @wraps(user_code)
-                async def middleware(*args, **kwargs):
-                    func_kwargs["request"] = kwargs[self.get_request_binding(wrap).name]
-                    if binding.name == "$return":
-                        response: HttpResponse = await user_code(*args, **kwargs)
-                        if property_name:
-                            setattr(
-                                response,
-                                property_name,
-                                value or func(response, **func_kwargs),
-                            )
-                        else:
-                            response: HttpResponse = value or func(
-                                response, **func_kwargs
-                            )
-                        return response
-
-            else:
-
-                @wraps(user_code)
-                def middleware(*args, **kwargs):
-                    func_kwargs["request"] = kwargs[self.get_request_binding(wrap).name]
-                    if binding.name == "$return":
-                        results = user_code(*args, **kwargs)
-                    if property_name:
-                        setattr(
-                            results,
-                            property_name,
-                            value or func(results, **func_kwargs),
-                        )
-                    else:
-                        results = value or func(results, **func_kwargs)
-                    return results
-
-            enchanced_user_code = middleware
-            wrap._function._func = enchanced_user_code
-
-    def jsonapi(self) -> Callable:
-        @self._configure_function_builder
-        def wrap(fb):
-            def decorator():
-                # Append the JSONAPI route parameters
-                self.get_request_binding(
-                    fb
-                ).route += (
-                    "/{resource_type}/{resource_id?}/{relation_type?}/{relation_id?}"
-                )
-                self._enhance_http_request(
-                    wrap=fb, property_name="jsonapi", func=parse_request_jsonapi
-                )
-                self._enhance_http_response(wrap=fb, func=alter_response_jsonapi)
-                return fb
-
-            return decorator()
-
-        return wrap
-
-    def session(
-        self,
-        secret: Optional[str] = os.environ.get("SESSION_SECRET"),
-        max_age: Optional[int] = int(os.environ.get("SESSION_MAX_AGE")) or 3600,
-        **kwargs,
-    ):
-        @self._configure_function_builder
-        def wrap(fb):
-            def decorator():
-                self._enhance_http_request(
-                    wrap=fb,
-                    property_name="session",
-                    func=parse_request_session,
-                    secret=secret,
-                    max_age=max_age,
-                    **kwargs,
-                )
-                self._enhance_http_response(
-                    wrap=fb,
-                    func=alter_response_session,
-                    secret=secret,
-                    max_age=max_age,
-                )
-                return fb
-
-            return decorator()
-
-        return wrap
-
-
-class FunctionApp(DFApp, FApp, HttpDecoratorApi):
-    def __init__(self, http_auth_level: Union[AuthLevel, str] = AuthLevel.FUNCTION):
-        super(DFApp, self).__init__(http_auth_level=http_auth_level)
+        return blueprints

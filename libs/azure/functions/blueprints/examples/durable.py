@@ -1,19 +1,20 @@
-from .. import app
-from libs.azure.functions import HttpRequest
+from libs.azure.functions import HttpRequest, Blueprint
+
+bp = Blueprint()
 
 
 # An HTTP-Triggered Function with a Durable Functions Client binding
-@app.route(route="orchestrators/simple")
-@app.durable_client_input(client_name="client")
-async def simple_start(req: HttpRequest, client):
+@bp.route(route="orchestrators/simple")
+@bp.durable_client_input(client_name="client")
+async def example_start(req: HttpRequest, client):
     instance_id = await client.start_new("simple_root")
     response = client.create_check_status_response(req, instance_id)
     return response
 
 
 # Orchestrator
-@app.orchestration_trigger(context_name="context")
-def simple_root(context):
+@bp.orchestration_trigger(context_name="context")
+def example_orch(context):
     result1 = yield context.call_activity("simple_hello", "Seattle")
     result2 = yield context.call_activity("simple_hello", "Tokyo")
     result3 = yield context.call_activity("simple_hello", "London")
@@ -22,6 +23,6 @@ def simple_root(context):
 
 
 # Activity
-@app.activity_trigger(input_name="city")
-def simple_hello(city: str):
+@bp.activity_trigger(input_name="city")
+def example_act(city: str):
     return "Hello " + city
