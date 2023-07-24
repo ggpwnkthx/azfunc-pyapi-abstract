@@ -137,4 +137,6 @@ __azurite_db*__.json
 # Logs
 logs
 
-blueprints
+/blueprints
+/playground.ipynb
+/testing.ipynb
