@@ -4,6 +4,8 @@ from io import BytesIO
 import httpx, os
 import pandas as pd
 
+# NOTE: THIS IS ONLY FOR DOWNLOADING ASYNC INSIGHT REPORTS
+# USE THE META API FOR EVERYTHING ELSE
 
 class FacebookReportFormatter(Message):
     def received(self, ctx: "Message.Context") -> "Message.Context":
