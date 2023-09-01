@@ -5,6 +5,7 @@ azure-functions-durable>=1.2.3 # Blueprints Required
 azure-identity
 azure-keyvault-secrets
 azure-storage-blob
+azure-storage-file-datalake
 
 # required
 ## data handling
@@ -15,7 +16,7 @@ pandas>=2.0.0
 smart-open
 sqlalchemy>=2.0.0
 ## openapi
-aiopenapi3
+git+https://github.com/commonism/aiopenapi3
 httpx_auth
 ## tools
 frozendict
@@ -29,6 +30,7 @@ py-abac
 ## database connectors
 pymssql
 ## formatting
+pyarrow
 simplejson
 sql-formatter
 ## geometry/geography
@@ -39,3 +41,5 @@ pyproj
 shapely
 ## onspot
 requests-auth-aws-sigv4
+## facebook/meta
+facebook-business

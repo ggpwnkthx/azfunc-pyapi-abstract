@@ -1,11 +1,7 @@
 from azure.functions import AuthLevel
 from libs.azure.functions import FunctionApp
+from deployment import get_bps
 
 app = FunctionApp(http_auth_level=AuthLevel.ANONYMOUS)
 
-app.register_blueprints([
-    #"libs/azure/functions/blueprints/daily_audience_generation/*",
-    #"libs/azure/functions/blueprints/keepalive"
-    #"libs/azure/functions/blueprints/onspot/*"
-    #"libs/azure/functions/blueprints/roku_async/*"
-])
+app.register_blueprints(get_bps(debug=False))
