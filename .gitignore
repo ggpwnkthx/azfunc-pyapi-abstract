@@ -139,3 +139,5 @@ logs
 
 /*.ipynb
 *.csv
+
+/development.py
