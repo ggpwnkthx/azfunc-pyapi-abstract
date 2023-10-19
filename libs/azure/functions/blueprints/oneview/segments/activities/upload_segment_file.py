@@ -61,49 +61,59 @@ def oneview_segments_upload_segment_file(ingress: dict):
     )
 
     # If the blob's size exceeds the chunk size, perform a multipart upload to S3
-    if blob.get_blob_properties().size > chunk_size:
-        s3_upload_id = s3_client.create_multipart_upload(
-            Bucket=s3_bucket,
-            Key=s3_key,
-        )["UploadId"]
-        s3_chunks = []
+    blob_size = blob.get_blob_properties().size
+    if blob_size == 0:
+        raise Exception("Segment blob is empty.")
+    # elif blob_size > chunk_size:
+    #     s3_upload_id = s3_client.create_multipart_upload(
+    #         Bucket=s3_bucket,
+    #         Key=s3_key,
+    #     )["UploadId"]
+    #     s3_chunks = []
 
-        # Upload each chunk to S3
-        for index, chunk in enumerate(blob.download_blob().chunks()):
-            r = s3_client.upload_part(
-                Bucket=s3_bucket,
-                Key=s3_key,
-                PartNumber=index + 1,
-                UploadId=s3_upload_id,
-                Body=chunk,
+    #     # Upload each chunk to S3
+    #     for index, chunk in enumerate(blob.download_blob().chunks()):
+    #         r = s3_client.upload_part(
+    #             Bucket=s3_bucket,
+    #             Key=s3_key,
+    #             PartNumber=index + 1,
+    #             UploadId=s3_upload_id,
+    #             Body=chunk,
+    #         )
+    #         s3_chunks.append({"PartNumber": index + 1, "ETag": r["ETag"]})
+
+    #     # Complete the multipart upload on S3
+    #     s3_client.complete_multipart_upload(
+    #         Bucket=s3_bucket,
+    #         Key=s3_key,
+    #         UploadId=s3_upload_id,
+    #         MultipartUpload={"Parts": s3_chunks},
+    #     )
+    # # If the blob's size is within the chunk size, perform a single upload to S3
+    # else:
+    #     s3_client.upload_fileobj(
+    #         Fileobj=blob.download_blob(),
+    #         Bucket=s3_bucket,
+    #         Key=s3_key,
+    #     )
+
+    # Retain a copy
+    blob: BlobClient = BlobClient.from_connection_string(
+        conn_str=os.environ[ingress["output"]["conn_str"]],
+        container_name=ingress["output"]["container_name"],
+        blob_name="segments/{}.csv".format(ingress["record"]["SegmentID"]),
+    ).upload_blob_from_url(
+        source_url=(
+            blob.url
+            + "?"
+            + generate_blob_sas(
+                account_name=blob.account_name,
+                container_name=blob.container_name,
+                blob_name=blob.blob_name,
+                account_key=blob.credential.account_key,
+                permission=BlobSasPermissions(read=True),
+                expiry=datetime.utcnow() + relativedelta(days=2),
             )
-            s3_chunks.append({"PartNumber": index + 1, "ETag": r["ETag"]})
-
-        # Complete the multipart upload on S3
-        s3_client.complete_multipart_upload(
-            Bucket=s3_bucket,
-            Key=s3_key,
-            UploadId=s3_upload_id,
-            MultipartUpload={"Parts": s3_chunks},
-        )
-    # If the blob's size is within the chunk size, perform a single upload to S3
-    else:
-        s3_client.upload_fileobj(
-            Fileobj=blob.download_blob(),
-            Bucket=s3_bucket,
-            Key=s3_key,
-        )
-
-    # Generate a SAS token for the blob in Azure Blob Storage and return the URL
-    return (
-        blob.url
-        + "?"
-        + generate_blob_sas(
-            account_name=blob.account_name,
-            container_name=blob.container_name,
-            blob_name=blob.blob_name,
-            account_key=blob.credential.account_key,
-            permission=BlobSasPermissions(read=True),
-            expiry=datetime.utcnow() + relativedelta(days=2),
-        )
+        ),
+        overwrite=True,
     )

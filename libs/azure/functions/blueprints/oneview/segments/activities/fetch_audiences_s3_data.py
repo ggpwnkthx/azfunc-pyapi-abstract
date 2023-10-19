@@ -1,14 +1,15 @@
 # File: libs/azure/functions/blueprints/oneview/segments/activities/fetch_audiences_s3_data.py
 
-from azure.storage.filedatalake import (
-    FileSystemClient,
-    FileSasPermissions,
-    generate_file_sas,
+from azure.storage.filedatalake import DataLakeFileClient
+from azure.storage.blob import (
+    BlobClient,
+    ContainerSasPermissions,
+    generate_container_sas,
 )
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
 from libs.azure.functions import Blueprint
-import boto3, os, pandas as pd
+import boto3, csv, os, pandas as pd
 
 bp = Blueprint()
 
@@ -38,13 +39,10 @@ def oneview_segments_fetch_audiences_s3_data(ingress: dict):
     azure.storage.filedatalake library to interact with Azure Data Lake.
     """
 
-    # Initialize Azure Data Lake client using connection string from environment variables
-    filesystem: FileSystemClient = FileSystemClient.from_connection_string(
+    # Define the path in Azure Data Lake to store the data
+    file = DataLakeFileClient.from_connection_string(
         conn_str=os.environ[ingress["output"]["conn_str"]],
         file_system_name=ingress["output"]["container_name"],
-    )
-    # Define the path in Azure Data Lake to store the data
-    file = filesystem.get_file_client(
         file_path="{}/raw/{}".format(
             ingress["output"]["prefix"], ingress["s3_key"].split("/")[-1]
         ),
@@ -69,6 +67,15 @@ def oneview_segments_fetch_audiences_s3_data(ingress: dict):
     for index, chunk in enumerate(
         pd.read_csv(obj["Body"], chunksize=100000, encoding_errors="ignore")
     ):
+        # If the header is a device ID...
+        if len(chunk.columns) == 1:
+            if len(chunk.columns[0]) == 36:
+                new_row = pd.DataFrame(
+                    [chunk.columns], columns=range(len(chunk.columns))
+                )
+                chunk.columns = ["devices"]
+                chunk = pd.concat([new_row, chunk]).reset_index(drop=True)
+
         if "devices" in chunk.columns:
             chunk = chunk[["devices"]]
         elif "deviceid" in chunk.columns:
@@ -99,11 +106,12 @@ def oneview_segments_fetch_audiences_s3_data(ingress: dict):
                 chunk["zip4"] = chunk["zip4"].str.zfill(4)
 
             if "zip" in chunk.columns and "zip4" not in chunk.columns:
-                chunk["zip4"] = None
+                chunk["zip4"] = ""
 
             chunk = chunk[["street", "city", "state", "zip", "zip4"]]
         if index == 0:
             columns = chunk.columns.to_list()
+
         # Append the processed chunk of data to Azure Data Lake
         data = chunk.to_csv(
             index=False,
@@ -111,6 +119,8 @@ def oneview_segments_fetch_audiences_s3_data(ingress: dict):
             lineterminator="\n",
             header=False,
             encoding="utf-8",
+            quoting=csv.QUOTE_ALL,
+            escapechar="\\",
         )
         file.append_data(data=data, offset=offset)
         offset += len(data)
@@ -119,19 +129,22 @@ def oneview_segments_fetch_audiences_s3_data(ingress: dict):
     file.flush_data(offset=offset)
 
     # Generate a SAS token for the stored data in Azure Data Lake and return the URL
+    blob = BlobClient.from_connection_string(
+        conn_str=os.environ[ingress["output"]["conn_str"]],
+        container_name=file.file_system_name,
+        blob_name=file.path_name,
+    )
     return {
         "url": (
-            file.url
+            blob.url
             + "?"
-            + generate_file_sas(
-                file.account_name,
-                file.file_system_name,
-                "/".join(file.path_name.split("/")[:-1]),
-                file.path_name.split("/")[-1],
-                filesystem.credential.account_key,
-                FileSasPermissions(read=True),
-                datetime.utcnow() + relativedelta(days=2),
+            + generate_container_sas(
+                account_name=blob.account_name,
+                container_name=blob.container_name,
+                account_key=blob.credential.account_key,
+                permission=ContainerSasPermissions(read=True),
+                expiry=datetime.utcnow() + relativedelta(days=2),
             )
-        ).replace("https://", "az://"),
+        ),
         "columns": columns,
     }

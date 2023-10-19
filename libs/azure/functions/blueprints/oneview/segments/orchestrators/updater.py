@@ -2,6 +2,7 @@
 
 from azure.durable_functions import DurableOrchestrationContext
 from libs.azure.functions import Blueprint
+from urllib.parse import urlparse
 import os
 
 bp = Blueprint()
@@ -115,6 +116,12 @@ def oneview_orchestrator_segment_updater(context: DurableOrchestrationContext):
                 },
             )
 
+            onspot_errors = [
+                e["message"] for e in onspot_results["callbacks"] if not e["success"]
+            ]
+            if onspot_errors:
+                raise Exception(*onspot_errors)
+
             # Add the processed device blobs to the list
             devices_blobs += [
                 {"url": j["location"].replace("az://", "https://"), "columns": None}
@@ -140,7 +147,7 @@ def oneview_orchestrator_segment_updater(context: DurableOrchestrationContext):
                         SELECT DISTINCT
                             [devices] AS [deviceid]
                         FROM OPENROWSET(
-                            BULK ('{"','".join(["/".join(blob["url"].split("/")[3:]).split("?")[0] for blob in devices_blobs])}'),
+                            BULK ('{"','".join([urlparse(blob["url"]).path for blob in devices_blobs])}'),
                             DATA_SOURCE = 'sa_esquireroku',
                             FORMAT = 'CSV',
                             PARSER_VERSION = '2.0'
